@@ -1,0 +1,6 @@
+{
+  "name": "TemanTugas",
+  "description": "Peer-to-peer collaborative homework assistance, mentor matching, gamified rewards, and interactive whiteboard for complex problem solving.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
