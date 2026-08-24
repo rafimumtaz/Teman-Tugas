@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +8,149 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id                 String  @id @default(cuid())
+  email              String  @unique
+  passwordHash       String
+  username           String  @unique
+  name               String
+  avatar             String?
+  role               String  @default("student") // 'student' | 'mentor' | 'scholar'
+  academicLevel      String?
+  universityOrSchool String?
+  bio                String?
+  level              Int     @default(1)
+  xp                 Int     @default(0)
+  xpToNextLevel      Int     @default(100)
+  temanCoins         Int     @default(0)
+  honorScore         Int     @default(100)
+  reputationPoints   Int     @default(0)
+  reputationTier     String  @default("Novice Mentor")
+  rating             Float   @default(5.0)
+  reviewsCount       Int     @default(0)
+
+  streakDays           Int     @default(0)
+  activeRole           String  @default("student")
+  hourlyCoins          Int     @default(0)
+  isOnline             Boolean @default(false)
+  totalHelpSessions    Int     @default(0)
+  totalQuestionsSolved Int     @default(0)
+  successRate          Float   @default(100.0)
+
+  expertSubjects String[] // PostgreSQL array of strings
+  joinedDate     DateTime @default(now())
+
+  // Relations
+  badges                  UserBadge[]
+  pastAssistanceAsStudent PastAssistance[] @relation("StudentAssistance")
+  pastAssistanceAsMentor  PastAssistance[] @relation("MentorAssistance")
+
+  reviewsReceived MentorReview[] @relation("MentorReviews")
+  reviewsGiven    MentorReview[] @relation("ReviewerReviews")
+
+  questionsAsked Question[]       @relation("AskerQuestions")
+  answersGiven   QuestionAnswer[] @relation("AnswerAuthor")
+}
+
+model UserBadge {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  icon        String
+  category    String
+  tier        String
+  unlocked    Boolean   @default(false)
+  progress    Int       @default(0)
+  maxProgress Int       @default(100)
+  unlockedAt  DateTime?
+}
+
+model PastAssistance {
+  id              String   @id @default(cuid())
+  title           String
+  subject         String
+  type            String
+  date            DateTime @default(now())
+  rating          Float
+  reviewSnippet   String?
+  pointsEarned    Int
+  coinsEarned     Int
+  isAccepted      Boolean  @default(true)
+  durationMinutes Int?
+
+  studentId String
+  student   User   @relation("StudentAssistance", fields: [studentId], references: [id])
+
+  mentorId String?
+  mentor   User?   @relation("MentorAssistance", fields: [mentorId], references: [id])
+}
+
+model MentorReview {
+  id            String   @id @default(cuid())
+  rating        Float
+  tags          String[]
+  comment       String
+  createdAt     DateTime @default(now())
+  pointsAwarded Int
+  sessionType   String
+  helpfulCount  Int      @default(0)
+
+  mentorId String
+  mentor   User   @relation("MentorReviews", fields: [mentorId], references: [id])
+
+  reviewerId String
+  reviewer   User   @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+}
+
+model Question {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String
+  rawEquation        String?
+  subject            String
+  subTopic           String
+  difficulty         String
+  tags               String[]
+  bountyCoins        Int
+  bountyXp           Int
+  createdAt          DateTime @default(now())
+  status             String   @default("open")
+  answersCount       Int      @default(0)
+  upvotes            Int      @default(0)
+  views              Int      @default(0)
+  whiteboardSnapshot String?
+  activeRoomId       String?
+
+  askerId String
+  asker   User   @relation("AskerQuestions", fields: [askerId], references: [id])
+
+  answers QuestionAnswer[]
+}
+
+model QuestionAnswer {
+  id                 String   @id @default(cuid())
+  content            String
+  stepByStep         String[]
+  formulas           String[]
+  createdAt          DateTime @default(now())
+  upvotes            Int      @default(0)
+  isAccepted         Boolean  @default(false)
+  isVerifiedByMentor Boolean  @default(false)
+
+  // AI Validation flatten
+  aiIsCorrect      Boolean?
+  aiClarityScore   Int?
+  aiPraise         String?
+  aiImprovementTip String?
+  aiSuggestedHonor Int?
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("AnswerAuthor", fields: [authorId], references: [id])
 }
