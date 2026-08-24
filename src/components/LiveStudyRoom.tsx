@@ -390,100 +390,117 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
 
           {/* Floating Audio-Visual Participant Tiles (Top-Right of Canvas) */}
           <div className="absolute top-6 right-6 z-30 flex flex-col sm:flex-row gap-2.5 pointer-events-auto">
-            {/* Mentor Tile */}
-            <div className="w-44 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 shadow-xl flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">
-                  Mentor Rekan
-                </span>
-                <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>24ms</span>
-                </div>
-              </div>
+            {(() => {
+              const isCurrentUserMentor = currentUser.id === session.mentor.id;
+              
+              const partnerProfile = isCurrentUserMentor ? session.student : session.mentor;
+              const partnerLabel = isCurrentUserMentor ? 'Siswa' : 'Mentor Rekan';
+              const partnerRoleDesc = isCurrentUserMentor ? 'Pelajar' : 'Senior Peer Tutor';
+              const partnerAudioLvl = mentorAudioLevel; // Simulated remote audio
 
-              <div className="flex items-center gap-2.5">
-                <div className="relative">
-                  <img
-                    src={session.mentor.avatar}
-                    alt={session.mentor.name}
-                    className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500 shadow-xs"
-                  />
-                  {mentorAudioLevel > 30 && (
-                    <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full ring-2 ring-white animate-pulse">
-                      <Volume2 className="w-2.5 h-2.5" />
+              const myLabel = isCurrentUserMentor ? 'Anda (Mentor)' : 'Anda (Siswa)';
+              const myRoleDesc = isCurrentUserMentor ? 'Senior Peer Tutor' : `Lvl ${currentUser.level} Scholar`;
+              const myAudioLvl = studentAudioLevel; // Driven by local mic
+              
+              return (
+                <>
+                  {/* Partner Tile */}
+                  <div className="w-44 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 shadow-xl flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full">
+                        {partnerLabel}
+                      </span>
+                      <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>24ms</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">{session.mentor.name}</p>
-                  <p className="text-[10px] text-slate-500 truncate">Senior Peer Tutor</p>
-                  {/* Waveform indicator */}
-                  <div className="flex items-center gap-0.5 mt-1 h-2">
-                    {[40, 70, 90, 60, 80].map((h, i) => (
-                      <div
-                        key={i}
-                        style={{ height: `${(h * mentorAudioLevel) / 100}%` }}
-                        className="w-1 bg-indigo-500 rounded-full transition-all duration-150"
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Student Tile (Self) */}
-            <div className="w-44 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 shadow-xl flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">
-                  Anda (Siswa)
-                </span>
-                {isHandRaised && (
-                  <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-bounce">
-                    <Hand className="w-2.5 h-2.5" /> Tanya
-                  </span>
-                )}
-              </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative">
+                        <img
+                          src={partnerProfile.avatar}
+                          alt={partnerProfile.name}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500 shadow-xs"
+                        />
+                        {partnerAudioLvl > 30 && (
+                          <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full ring-2 ring-white animate-pulse">
+                            <Volume2 className="w-2.5 h-2.5" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{partnerProfile.name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{partnerRoleDesc}</p>
+                        {/* Waveform indicator */}
+                        <div className="flex items-center gap-0.5 mt-1 h-2">
+                          {[40, 70, 90, 60, 80].map((h, i) => (
+                            <div
+                              key={i}
+                              style={{ height: `${(h * partnerAudioLvl) / 100}%` }}
+                              className="w-1 bg-indigo-500 rounded-full transition-all duration-150"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2.5">
-                <div className="relative">
-                  {isCameraOn && localStream ? (
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500 shadow-xs"
-                    />
-                  ) : (
-                    <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-slate-300 shadow-xs"
-                    />
-                  )}
-                  <div
-                    className={`absolute -bottom-1 -right-1 p-0.5 rounded-full ring-2 ring-white ${isMicOn ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
-                  >
-                    {isMicOn ? <Mic className="w-2.5 h-2.5" /> : <MicOff className="w-2.5 h-2.5" />}
+                  {/* My Tile (Self) */}
+                  <div className="w-44 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-xl p-2.5 shadow-xl flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">
+                        {myLabel}
+                      </span>
+                      {isHandRaised && (
+                        <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-bounce">
+                          <Hand className="w-2.5 h-2.5" /> Tanya
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative">
+                        {isCameraOn && localStream ? (
+                          <video
+                            ref={localVideoRef}
+                            autoPlay
+                            muted
+                            playsInline
+                            className="w-10 h-10 rounded-full object-cover border-2 border-emerald-500 shadow-xs"
+                          />
+                        ) : (
+                          <img
+                            src={currentUser.avatar}
+                            alt={currentUser.name}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-slate-300 shadow-xs"
+                          />
+                        )}
+                        <div
+                          className={`absolute -bottom-1 -right-1 p-0.5 rounded-full ring-2 ring-white ${isMicOn ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}
+                        >
+                          {isMicOn ? <Mic className="w-2.5 h-2.5" /> : <MicOff className="w-2.5 h-2.5" />}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{myRoleDesc}</p>
+                        {/* Waveform indicator */}
+                        <div className="flex items-center gap-0.5 mt-1 h-2">
+                          {[30, 50, 80, 40, 60].map((h, i) => (
+                            <div
+                              key={i}
+                              style={{ height: isMicOn ? `${(h * myAudioLvl) / 100}%` : '2px' }}
+                              className={`w-1 rounded-full transition-all duration-150 ${isMicOn ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</p>
-                  <p className="text-[10px] text-slate-500 truncate">Lvl {currentUser.level} Scholar</p>
-                  {/* Waveform indicator */}
-                  <div className="flex items-center gap-0.5 mt-1 h-2">
-                    {[30, 50, 80, 40, 60].map((h, i) => (
-                      <div
-                        key={i}
-                        style={{ height: isMicOn ? `${(h * studentAudioLevel) / 100}%` : '2px' }}
-                        className={`w-1 rounded-full transition-all duration-150 ${isMicOn ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 
