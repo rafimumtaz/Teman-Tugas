@@ -49,6 +49,8 @@ export const MentorMarketplace: React.FC<MentorMarketplaceProps> = ({
   ];
 
   const filteredMentors = mentors.filter((m) => {
+    if (m.id === currentUser.id) return false; // Prevent mentors from arranging a session with themselves
+
     const matchSearch =
       m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.username && m.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
