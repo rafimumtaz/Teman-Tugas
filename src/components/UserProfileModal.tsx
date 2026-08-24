@@ -211,7 +211,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <div className="bg-white border border-slate-200/90 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto relative">
         
         {/* Modal Header & Cover */}
-        <div className="relative bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-800 pt-8 pb-16 px-6 sm:px-8 text-white">
+        <div className="relative bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-800 pt-20 pb-8 px-6 sm:px-8 text-white">
           <button
             onClick={onClose}
             aria-label="Tutup Profil"
@@ -273,21 +273,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         </div>
 
         {/* Floating Avatar & User Bio Header */}
-        <div className="px-6 sm:px-8 pb-4 relative -mt-12 z-10">
-          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
-            <div className="flex items-end gap-4">
-              <div className="relative">
+        <div className="px-6 sm:px-8 pb-4 relative z-10 pt-4">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 flex-1">
+              <div className="relative shrink-0">
                 <img
                   src={user.avatar}
                   alt={user.name}
                   className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-white shadow-xl bg-slate-100"
                 />
-                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md border-2 border-white flex items-center gap-0.5">
+                <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-[11px] font-black px-2 py-0.5 rounded-lg shadow-md border-2 border-white flex items-center gap-0.5 z-10">
                   Lv.{user.level || 1}
                 </div>
               </div>
 
-              <div className="space-y-1 pb-1">
+              <div className="space-y-1 pb-1 pt-2 sm:pt-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900">{user.name}</h2>
                   <span className="text-sm font-semibold text-slate-400">@{user.username || user.id}</span>
@@ -318,7 +318,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
 
             {/* Quick Stats Pill */}
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5 flex items-center gap-4 sm:gap-6 shadow-2xs self-stretch md:self-auto justify-around">
+            <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-2.5 flex items-center gap-4 sm:gap-6 shadow-sm self-stretch md:self-auto justify-around mt-4 md:mt-0 relative z-10">
               <div className="text-center px-1">
                 <div className="flex items-center justify-center gap-1 text-slate-900 font-black text-base sm:text-lg">
                   <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
@@ -374,38 +374,52 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         )}
 
         {/* Tab Navigation */}
-        <div className="px-6 sm:px-8 border-b border-slate-200 flex items-center gap-2 sm:gap-4 overflow-x-auto bg-slate-50/50">
-          <button
+        <div className="w-full overflow-x-auto overflow-y-hidden bg-slate-50/50 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full pb-4 sm:pb-5">
+          <div className="px-6 sm:px-8 border-b border-slate-200 flex items-center gap-2 sm:gap-4 w-max min-w-full">
+            <button
             onClick={() => setActiveTab('overview')}
-            className={`py-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'overview' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`relative py-3 px-3 text-xs sm:text-sm font-extrabold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'overview' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
           >
             <BookOpen className="w-4 h-4" />
             <span>Ringkasan & Keahlian</span>
+            {activeTab === 'overview' && (
+              <div className="absolute -bottom-px left-0 right-0 h-0.5 bg-indigo-600 rounded-t-sm" />
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('reputation')}
-            className={`py-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'reputation' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`relative py-3 px-3 text-xs sm:text-sm font-extrabold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'reputation' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
           >
             <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
             <span>Reputasi & Ulasan ({totalReviews})</span>
+            {activeTab === 'reputation' && (
+              <div className="absolute -bottom-px left-0 right-0 h-0.5 bg-indigo-600 rounded-t-sm" />
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('assistance')}
-            className={`py-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'assistance' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`relative py-3 px-3 text-xs sm:text-sm font-extrabold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'assistance' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             <span>Riwayat Bantuan Diberikan ({pastAssistanceList.length})</span>
+            {activeTab === 'assistance' && (
+              <div className="absolute -bottom-px left-0 right-0 h-0.5 bg-indigo-600 rounded-t-sm" />
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('points-info')}
-            className={`py-3 px-3 text-xs sm:text-sm font-extrabold border-b-2 whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'points-info' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+            className={`relative py-3 px-3 text-xs sm:text-sm font-extrabold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${activeTab === 'points-info' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}
           >
             <Award className="w-4 h-4 text-indigo-500" />
             <span>Sistem Poin Mentor</span>
+            {activeTab === 'points-info' && (
+              <div className="absolute -bottom-px left-0 right-0 h-0.5 bg-indigo-600 rounded-t-sm" />
+            )}
           </button>
+        </div>
         </div>
 
         {/* Modal Scrollable Body */}

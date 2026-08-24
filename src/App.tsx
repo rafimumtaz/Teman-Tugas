@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
@@ -126,7 +128,7 @@ export default function App() {
         description: 'Lencana resmi dedikasi komunitas TemanTugas',
         icon: 'Award',
         unlocked: true,
-        category: 'teaching' as const,
+        category: 'mentorship' as const,
         tier: 'gold' as const,
         progress: 10,
         maxProgress: 10,
@@ -851,7 +853,7 @@ export default function App() {
               sampleSolutions: targetUser.totalQuestionsSolved || 15,
               availableNow: true,
             };
-            handleRequestInstantMentorSession(asMentor);
+            handleRequestInstantMentorSession(asMentor as MentorProfile);
           }}
           onAddReview={handleAddReview}
           onEndorseSubject={handleEndorseSubject}
