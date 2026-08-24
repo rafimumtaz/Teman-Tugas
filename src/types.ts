@@ -230,7 +230,7 @@ export interface StudyRoomSession {
   targetEquation?: string;
   startedAt: number;
   durationSeconds: number;
-  status: 'connecting' | 'active' | 'completed';
+  status: 'pending' | 'connecting' | 'active' | 'completed' | 'rejected';
   mentor: RoomParticipant;
   student: RoomParticipant;
   messages: RoomMessage[];

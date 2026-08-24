@@ -76,6 +76,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   partnerName = 'Peer Partner',
   roomTitle = 'Collaborative Whiteboard',
   presetFormula,
+  pusherChannel,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
