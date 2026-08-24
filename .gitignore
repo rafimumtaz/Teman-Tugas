@@ -7,3 +7,8 @@ coverage/
 .env*
 !.env.example
 .next/
+/src/generated/prisma
+.agents
+.claude
+.windsurf
+assets

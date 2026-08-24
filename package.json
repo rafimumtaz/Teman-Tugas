@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@prisma/client": "^7.9.1",
     "@types/canvas-confetti": "^1.9.0",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^0.546.0",
@@ -24,6 +25,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",
+    "prisma": "^7.9.1",
     "tailwindcss": "^4.1.1",
     "typescript": "^5"
   }

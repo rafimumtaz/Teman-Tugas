@@ -210,70 +210,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white border border-slate-200/90 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto relative">
         
-        {/* Modal Header & Cover */}
-        <div className="relative bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-800 pt-20 pb-8 px-6 sm:px-8 text-white">
-          <button
-            onClick={onClose}
-            aria-label="Tutup Profil"
-            className="absolute right-4 top-4 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full backdrop-blur-xs transition z-20 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
-            <div className="flex items-center gap-2">
-              <span className="bg-white/20 backdrop-blur-xs text-white border border-white/30 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Profil Pengguna & Reputasi Mentor
-              </span>
-              {user.isOnline && (
-                <span className="bg-emerald-500/90 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white"></span> Online
-                </span>
-              )}
-            </div>
-
-            {/* Header Action CTA */}
-            <div className="flex items-center gap-2">
-              {isOwnProfile ? (
-                <button
-                  onClick={() => setIsEditingProfile(true)}
-                  className="bg-white hover:bg-slate-50 text-indigo-700 text-xs sm:text-sm font-bold px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Edit3 className="w-4 h-4" />
-                  <span>Edit Profil Saya</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setShowReviewForm(true);
-                      setActiveTab('reputation');
-                    }}
-                    className="bg-white/20 hover:bg-white/30 backdrop-blur-xs text-white border border-white/30 text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
-                    <span>Beri Ulasan</span>
-                  </button>
-                  {onStartSession && (
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onStartSession(user);
-                      }}
-                      className="bg-white hover:bg-slate-50 text-indigo-700 text-xs sm:text-sm font-extrabold px-4 py-2 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Video className="w-4 h-4 text-indigo-600" />
-                      <span>Mulai Sesi Belajar</span>
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={onClose}
+          aria-label="Tutup Profil"
+          className="absolute right-4 top-4 bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-full transition z-20 cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
         {/* Floating Avatar & User Bio Header */}
-        <div className="px-6 sm:px-8 pb-4 relative z-10 pt-4">
+        <div className="px-6 sm:px-8 pb-4 relative z-10 pt-12 sm:pt-14 shrink-0">
           <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 flex-1">
               <div className="relative shrink-0">
@@ -295,6 +241,49 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     <span>{tierInfo.icon}</span>
                     <span>{user.reputationTier || 'Novice Mentor'}</span>
                   </span>
+                  {user.isOnline && (
+                    <span className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 ml-0 sm:ml-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> ONLINE
+                    </span>
+                  )}
+                  
+                  {/* Action CTA */}
+                  <div className="flex items-center gap-2 ml-0 sm:ml-2 mt-2 sm:mt-0">
+                    {isOwnProfile ? (
+                      <button
+                        onClick={() => setIsEditingProfile(true)}
+                        className="bg-white hover:bg-slate-50 text-indigo-700 border border-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit Profil Saya</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setShowReviewForm(true);
+                            setActiveTab('reputation');
+                          }}
+                          className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                          <span>Beri Ulasan</span>
+                        </button>
+                        {onStartSession && (
+                          <button
+                            onClick={() => {
+                              onClose();
+                              onStartSession(user);
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span>Sesi Belajar</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Academic Level & School */}
@@ -374,7 +363,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         )}
 
         {/* Tab Navigation */}
-        <div className="w-full overflow-x-auto overflow-y-hidden bg-slate-50/50 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full pb-4 sm:pb-5">
+        <div className="shrink-0 w-full overflow-x-auto overflow-y-hidden bg-slate-50/50 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full pb-4 sm:pb-5">
           <div className="px-6 sm:px-8 border-b border-slate-200 flex items-center gap-2 sm:gap-4 w-max min-w-full">
             <button
             onClick={() => setActiveTab('overview')}
