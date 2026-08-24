@@ -107,16 +107,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Gamification & Profile Status */}
         <div className="flex items-center gap-2.5">
-          {/* Active Mode Switcher Pill */}
-          <button
-            onClick={onToggleRole}
-            className={`hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition cursor-pointer ${currentUser.activeRole === 'mentor' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-xs'}`}
-            title="Klik untuk beralih mode Siswa / Mentor"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>{currentUser.activeRole === 'mentor' ? 'Mode: Mentor Aktif' : 'Mode: Belajar'}</span>
-          </button>
-
           {/* Reputation Points Pill */}
           <div
             onClick={onOpenProfile}
