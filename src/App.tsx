@@ -43,7 +43,35 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
     dbUsers?.find(u => u.id === initialUserId) as UserProfile
   );
   const [questions, setQuestions] = useState<Question[]>(dbQuestions || []);
-  const [mentors, setMentors] = useState<MentorProfile[]>(dbUsers?.filter(u => u.role === 'mentor') as any || []);
+  const [mentors, setMentors] = useState<MentorProfile[]>(
+    (dbUsers?.filter(u => u.role === 'mentor' || u.activeRole === 'mentor') || []).map(u => ({
+      id: u.id,
+      username: u.username,
+      name: u.name,
+      avatar: u.avatar || '',
+      school: u.universityOrSchool || '',
+      academicLevel: u.academicLevel || '',
+      rating: u.rating,
+      reviewsCount: u.reviewsCount,
+      reputationPoints: u.reputationPoints,
+      reputationTier: u.reputationTier,
+      ratingDistribution: u.ratingDistribution || { 5: u.reviewsCount, 4: 0, 3: 0, 2: 0, 1: 0 },
+      hourlyCoins: u.hourlyCoins,
+      isOnline: u.isOnline,
+      bio: u.bio || '',
+      specialties: u.expertSubjects || [],
+      totalSessions: u.totalHelpSessions,
+      responseRateMinutes: 5,
+      badges: u.badges ? u.badges.map(b => b.name) : [],
+      sampleSolutions: u.totalQuestionsSolved,
+      availableNow: u.isOnline,
+      successRate: u.successRate,
+      pastAssistance: u.pastAssistance || [],
+      reviews: u.reviews || [],
+      endorsements: u.endorsements || [],
+      joinedDate: u.joinedDate || 'Hari ini',
+    }))
+  );
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [rewards, setRewards] = useState<GamificationReward[]>([]);
 
@@ -495,6 +523,68 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
 
   // Start Live Session from Question
   const handleStartLiveSessionFromQuestion = (q: Question) => {
+    const isAsker = currentUser.id === q.askerId;
+    
+    // Default student is the asker of the question
+    const studentInfo = {
+      id: q.askerId,
+      name: q.askerName,
+      avatar: q.askerAvatar,
+      role: 'student' as const,
+      isMicOn: isAsker,
+      isCameraOn: false,
+      isHandRaised: false,
+      isSpeaking: false,
+      audioLevel: 0,
+    };
+    
+    let mentorInfo;
+    
+    if (!isAsker) {
+      // The current user (who is NOT the asker) clicked to help, so they are the Mentor!
+      mentorInfo = {
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: currentUser.avatar || '',
+        role: 'mentor' as const,
+        isMicOn: true,
+        isCameraOn: false,
+        isHandRaised: false,
+        isSpeaking: true,
+        audioLevel: 50,
+      };
+    } else {
+      // The current user IS the asker. Check if there are answers to pick a mentor from.
+      const topAnswer = q.answers.find(a => a.isAccepted) || q.answers[0];
+      
+      if (topAnswer) {
+        mentorInfo = {
+          id: topAnswer.authorId,
+          name: topAnswer.authorName,
+          avatar: topAnswer.authorAvatar || '',
+          role: 'mentor' as const,
+          isMicOn: false,
+          isCameraOn: false,
+          isHandRaised: false,
+          isSpeaking: false,
+          audioLevel: 0,
+        };
+      } else {
+        // No answers yet, wait for someone
+        mentorInfo = {
+          id: 'waiting',
+          name: 'Menunggu Mentor...',
+          avatar: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
+          role: 'mentor' as const,
+          isMicOn: false,
+          isCameraOn: false,
+          isHandRaised: false,
+          isSpeaking: false,
+          audioLevel: 0,
+        };
+      }
+    }
+
     const newSession: StudyRoomSession = {
       id: `room_${Date.now()}`,
       title: q.title,
@@ -505,38 +595,18 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
       startedAt: Date.now(),
       durationSeconds: 0,
       status: 'active',
-      mentor: {
-        id: 'mentor-1',
-        name: 'Dr. Sarah Amalia',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-        role: 'mentor',
-        isMicOn: true,
-        isCameraOn: false,
-        isHandRaised: false,
-        isSpeaking: true,
-        audioLevel: 50,
-      },
-      student: {
-        id: currentUser.id,
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        role: 'student',
-        isMicOn: true,
-        isCameraOn: false,
-        isHandRaised: false,
-        isSpeaking: false,
-        audioLevel: 0,
-      },
-      messages: [
+      mentor: mentorInfo,
+      student: studentInfo,
+      messages: mentorInfo.id !== 'waiting' ? [
         {
           id: 'msg-init',
-          senderId: 'mentor-1',
-          senderName: 'Dr. Sarah Amalia',
-          senderAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-          text: `Halo ${currentUser.name}! Saya siap membantu membedah "${q.title}". Mari kita mulai uraikan di papan tulis ya.`,
+          senderId: mentorInfo.id,
+          senderName: mentorInfo.name,
+          senderAvatar: mentorInfo.avatar,
+          text: `Halo ${studentInfo.name}! Saya siap membantu membedah "${q.title}". Mari kita mulai uraikan di papan tulis ya.`,
           timestamp: 'Baru saja',
         },
-      ],
+      ] : [],
       sharedNotes: '',
       sharedWhiteboard: [],
       bountyCoins: q.bountyCoins,
@@ -544,7 +614,7 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
 
     setActiveSession(newSession);
     setCurrentTab('whiteboard');
-    showNotice('Sesi Live Audio-Visual & Whiteboard aktif! Terhubung dengan Mentor Dr. Sarah.');
+    showNotice(`Sesi Live Audio-Visual & Whiteboard aktif! ${mentorInfo.id === 'waiting' ? 'Menunggu Mentor Bergabung...' : `Terhubung dengan ${mentorInfo.name}.`}`);
   };
 
   // Request Instant Session with Specific Mentor
