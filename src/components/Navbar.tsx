@@ -9,11 +9,12 @@ import {
   Sparkles,
   PlusCircle,
   GraduationCap,
-  Bell,
-  Search,
   Zap,
-  User
+  User,
+  LogOut
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { logoutUser } from '../app/actions/auth';
 import { UserProfile } from '../types';
 
 interface NavbarProps {
@@ -33,6 +34,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfile,
   activeRoomActive,
 }) => {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logoutUser();
+    router.push('/login');
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 text-slate-800 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
@@ -164,6 +172,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
           </div>
+          
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            className="ml-2 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 transition-colors border border-slate-200 shadow-xs cursor-pointer"
+            title="Keluar"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
 

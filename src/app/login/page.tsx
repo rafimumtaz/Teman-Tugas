@@ -2,21 +2,42 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Mail, Lock, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, Mail, Lock, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { loginUser } from '../actions/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // alert('Login implementation pending backend route');
-    }, 1500);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const formData = new FormData();
+    formData.append('email', email);
+    formData.append('password', password);
+
+    const result = await loginUser(formData);
+    
+    setIsLoading(false);
+
+    if (result.error) {
+      setErrorMsg(result.error);
+    } else if (result.success) {
+      setSuccessMsg(result.message!);
+      // Redirect after a short delay
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
+    }
   };
 
   return (
@@ -45,6 +66,20 @@ export default function LoginPage() {
           
           <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
           
+          {errorMsg && (
+            <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-sm animate-fade-in">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="mb-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-emerald-400 text-sm animate-fade-in">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-4">
               <div className="space-y-2">

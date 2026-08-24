@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Mail, Lock, User, Sparkles, Hexagon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, Mail, Lock, User, Sparkles, Hexagon, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { registerUser } from '../actions/auth';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -10,14 +12,34 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
-      // alert('Registration implementation pending backend route');
-    }, 1500);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('password', password);
+
+    const result = await registerUser(formData);
+
+    setIsLoading(false);
+
+    if (result.error) {
+      setErrorMsg(result.error);
+    } else if (result.success) {
+      setSuccessMsg(result.message!);
+      // Redirect after a short delay so they can see the success message
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
+    }
   };
 
   return (
@@ -46,6 +68,20 @@ export default function RegisterPage() {
           
           <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
+          {errorMsg && (
+            <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-sm animate-fade-in">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="mb-6 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-emerald-400 text-sm animate-fade-in">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-4">
               

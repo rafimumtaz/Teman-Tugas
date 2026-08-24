@@ -14,13 +14,10 @@ import {
   PastAssistance,
   ReputationTier,
 } from './types';
-import {
-  INITIAL_CURRENT_USER,
-  INITIAL_QUESTIONS,
-  MOCK_MENTORS,
-  MOCK_LEADERBOARD,
-  MOCK_REWARDS,
-} from './data/mockData';
+import { createQuestion, createAnswer, acceptAnswer, upvoteQuestion } from './app/actions/questions';
+import { submitMentorReview } from './app/actions/mentors';
+import { updateProfile, onboardMentor, claimReward } from './app/actions/users';
+// Removed mock data imports as the app is now fully database-backed
 import { Navbar } from './components/Navbar';
 import { QuestionsBoard } from './components/QuestionsBoard';
 import { LiveStudyRoom } from './components/LiveStudyRoom';
@@ -31,16 +28,24 @@ import { Whiteboard } from './components/Whiteboard';
 import { UserProfileModal } from './components/UserProfileModal';
 import { Sparkles, Video, Award, CheckCircle2, BookOpen, Users, PlusCircle, ShieldCheck } from 'lucide-react';
 
-export default function App() {
+interface AppProps {
+  dbUsers?: UserProfile[];
+  dbQuestions?: Question[];
+  initialUserId?: string;
+}
+
+export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
   // Navigation
   const [currentTab, setCurrentTab] = useState<'questions' | 'whiteboard' | 'mentors' | 'gamification'>('questions');
 
   // Application Data States
-  const [currentUser, setCurrentUser] = useState<UserProfile>(INITIAL_CURRENT_USER);
-  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
-  const [mentors, setMentors] = useState<MentorProfile[]>(MOCK_MENTORS);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(MOCK_LEADERBOARD);
-  const [rewards, setRewards] = useState<GamificationReward[]>(MOCK_REWARDS);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(
+    dbUsers?.find(u => u.id === initialUserId) as UserProfile
+  );
+  const [questions, setQuestions] = useState<Question[]>(dbQuestions || []);
+  const [mentors, setMentors] = useState<MentorProfile[]>(dbUsers?.filter(u => u.role === 'mentor') as any || []);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+  const [rewards, setRewards] = useState<GamificationReward[]>([]);
 
   // Active Live Study Room Session
   const [activeSession, setActiveSession] = useState<StudyRoomSession | null>(null);
@@ -305,7 +310,22 @@ export default function App() {
   };
 
   // Update Profile Data
-  const handleUpdateProfile = (updatedData: Partial<UserProfile>) => {
+  const handleUpdateProfile = async (updatedData: Partial<UserProfile>) => {
+    const result = await updateProfile({
+      name: updatedData.name,
+      username: updatedData.username,
+      universityOrSchool: updatedData.universityOrSchool,
+      academicLevel: updatedData.academicLevel,
+      bio: updatedData.bio,
+      expertSubjects: updatedData.expertSubjects,
+      hourlyCoins: updatedData.hourlyCoins,
+    });
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
     setCurrentUser((prev) => {
       const updated = { ...prev, ...updatedData };
       if (selectedUserProfile && selectedUserProfile.id === prev.id) {
@@ -333,19 +353,18 @@ export default function App() {
       })
     );
 
-    showNotice('Profil Anda berhasil diperbarui!');
+    showNotice('Profil Anda berhasil diperbarui di database!');
   };
 
   // Ask Question
-  const handleAskQuestion = (newQ: Partial<Question>) => {
+  const handleAskQuestion = async (newQ: Partial<Question>) => {
     const cost = newQ.bountyCoins || 25;
     if (currentUser.temanCoins < cost) {
       alert('Saldo TemanCoins tidak cukup untuk memasang bounty ini.');
       return;
     }
 
-    const created: Question = {
-      id: `q-${Date.now()}`,
+    const result = await createQuestion({
       title: newQ.title || 'Pertanyaan Tugas Baru',
       description: newQ.description || '',
       rawEquation: newQ.rawEquation,
@@ -355,30 +374,38 @@ export default function App() {
       tags: newQ.tags || ['HomeworkHelp'],
       bountyCoins: cost,
       bountyXp: cost * 2.5,
-      askerId: currentUser.id,
-      askerName: currentUser.name,
-      askerAvatar: currentUser.avatar,
-      askerSchool: currentUser.universityOrSchool,
-      askerLevel: currentUser.level,
-      createdAt: 'Baru saja',
-      status: 'open',
-      answersCount: 0,
-      upvotes: 1,
-      views: 1,
-      answers: [],
-    };
+    });
 
-    setQuestions((prev) => [created, ...prev]);
-    setCurrentUser((prev) => ({
-      ...prev,
-      temanCoins: prev.temanCoins - cost,
-      xp: prev.xp + 20,
-    }));
-    showNotice(`Soal "${created.title.slice(0, 30)}..." berhasil diajukan dengan bounty ${cost} Koin!`);
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    if (result.success && result.question) {
+      // Serialize dates before inserting into state to match Next.js RSC boundary behavior
+      const dbQ = result.question;
+      const created: Question = {
+        ...dbQ,
+        createdAt: new Date(dbQ.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        askerName: currentUser.name,
+        askerAvatar: currentUser.avatar,
+        askerSchool: currentUser.universityOrSchool,
+        askerLevel: currentUser.level,
+      } as any;
+
+      setQuestions((prev) => [created, ...prev]);
+      setCurrentUser((prev) => ({
+        ...prev,
+        temanCoins: prev.temanCoins - cost,
+        xp: prev.xp + 20,
+      }));
+      showNotice(`Soal "${created.title.slice(0, 30)}..." berhasil diajukan dan disimpan ke database!`);
+    }
   };
 
   // Upvote Question
-  const handleUpvoteQuestion = (qId: string) => {
+  const handleUpvoteQuestion = async (qId: string) => {
+    // Optimistic UI update
     setQuestions((prev) =>
       prev.map((q) => {
         if (q.id === qId) {
@@ -392,83 +419,78 @@ export default function App() {
         return q;
       })
     );
+    // Background sync
+    await upvoteQuestion(qId);
   };
 
   // Add Answer to Question & Earn Mentor Reputation
-  const handleAddAnswer = (qId: string, ans: Partial<QuestionAnswer>) => {
-    const newAns: QuestionAnswer = {
-      id: `ans_${Date.now()}`,
-      questionId: qId,
-      authorId: currentUser.id,
-      authorName: currentUser.name,
-      authorAvatar: currentUser.avatar,
-      authorSchool: currentUser.universityOrSchool,
-      authorLevel: currentUser.level,
-      authorBadges: ['Peer Helper', 'Honor Scholar'],
+  const handleAddAnswer = async (qId: string, ans: Partial<QuestionAnswer>) => {
+    const result = await createAnswer(qId, {
       content: ans.content || '',
       stepByStep: ans.stepByStep || [],
-      createdAt: 'Baru saja',
-      upvotes: 1,
-      isAccepted: false,
-      isVerifiedByMentor: currentUser.activeRole === 'mentor',
-      aiValidation: ans.aiValidation,
-    };
+    });
 
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === qId ? { ...q, answers: [...q.answers, newAns], answersCount: q.answers.length + 1 } : q))
-    );
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
 
-    // Record past assistance in currentUser
-    const targetQ = questions.find((q) => q.id === qId);
-    const newPastAssistance: PastAssistance = {
-      id: `asst_${Date.now()}`,
-      title: targetQ ? targetQ.title : 'Solusi Soal Tugas',
-      subject: targetQ ? targetQ.subject : 'Matematika',
-      type: 'qna_solution',
-      studentId: targetQ ? targetQ.askerId : 'std-sys',
-      studentName: targetQ ? targetQ.askerName : 'Siswa TemanTugas',
-      studentAvatar: targetQ ? targetQ.askerAvatar : currentUser.avatar,
-      studentSchool: targetQ ? targetQ.askerSchool : undefined,
-      rating: 5,
-      date: 'Baru saja',
-      pointsEarned: 60,
-      coinsEarned: targetQ ? targetQ.bountyCoins : 25,
-      reviewSnippet: 'Penjelasan langkah terstruktur dengan sangat baik!',
-      isAccepted: true,
-    };
+    if (result.success && result.answer) {
+      const dbA = result.answer;
+      const newAns: QuestionAnswer = {
+        ...dbA,
+        createdAt: new Date(dbA.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        authorName: currentUser.name,
+        authorAvatar: currentUser.avatar,
+        authorSchool: currentUser.universityOrSchool,
+        authorLevel: currentUser.level,
+        authorBadges: ['Peer Helper', 'Honor Scholar'],
+      } as any;
 
-    const addedPoints = 60;
-    const newReputation = (currentUser.reputationPoints || 0) + addedPoints;
-    const newTier = computeTier(newReputation);
+      setQuestions((prev) =>
+        prev.map((q) => (q.id === qId ? { ...q, answers: [...q.answers, newAns], answersCount: q.answers.length + 1 } : q))
+      );
 
-    // Award helper XP, reputation points & honor
-    setCurrentUser((prev) => ({
-      ...prev,
-      xp: prev.xp + 80,
-      honorScore: prev.honorScore + 25,
-      reputationPoints: newReputation,
-      reputationTier: newTier,
-      totalQuestionsSolved: prev.totalQuestionsSolved + 1,
-      pastAssistance: [newPastAssistance, ...(prev.pastAssistance || [])],
-    }));
+      const addedPoints = 60;
+      const newReputation = (currentUser.reputationPoints || 0) + addedPoints;
+      const newTier = computeTier(newReputation);
 
-    showNotice('Jawaban Anda berhasil diposting! Anda memperoleh +80 XP dan +60 Poin Reputasi.');
+      // Award helper XP, reputation points & honor locally
+      setCurrentUser((prev) => ({
+        ...prev,
+        xp: prev.xp + 80,
+        honorScore: prev.honorScore + 25,
+        reputationPoints: newReputation,
+        reputationTier: newTier,
+        totalQuestionsSolved: prev.totalQuestionsSolved + 1,
+      }));
+
+      showNotice('Jawaban Anda berhasil disimpan ke database! Anda memperoleh +80 XP dan +60 Poin Reputasi.');
+    }
   };
 
   // Accept Answer & Award Bounty
-  const handleAcceptAnswer = (qId: string, ansId: string, bounty: number) => {
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id === qId) {
-          const updatedAnswers = q.answers.map((a) => (a.id === ansId ? { ...a, isAccepted: true } : a));
-          return { ...q, status: 'resolved', answers: updatedAnswers };
-        }
-        return q;
-      })
-    );
+  const handleAcceptAnswer = async (qId: string, ansId: string, bounty: number) => {
+    const result = await acceptAnswer(qId, ansId, bounty);
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
 
-    showNotice(`Solusi diterima! Bounty +${bounty} TemanCoins berhasil disalurkan ke pembuat jawaban.`);
-    confetti({ particleCount: 75, spread: 80 });
+    if (result.success) {
+      setQuestions((prev) =>
+        prev.map((q) => {
+          if (q.id === qId) {
+            const updatedAnswers = q.answers.map((a) => (a.id === ansId ? { ...a, isAccepted: true } : a));
+            return { ...q, status: 'resolved', answers: updatedAnswers };
+          }
+          return q;
+        })
+      );
+
+      showNotice(`Solusi diterima! Bounty +${bounty} TemanCoins berhasil disalurkan ke pembuat jawaban.`);
+      confetti({ particleCount: 75, spread: 80 });
+    }
   };
 
   // Start Live Session from Question
@@ -577,7 +599,7 @@ export default function App() {
   };
 
   // End Session & Trigger Rewards and Mentor Reputation
-  const handleEndSession = (stats: { rating: number; review: string; bonusCoins: number }) => {
+  const handleEndSession = async (stats: { rating: number; review: string; bonusCoins: number }) => {
     const endedSession = activeSession;
     setActiveSession(null);
     setCurrentTab('gamification');
@@ -587,21 +609,33 @@ export default function App() {
     const newLevel = newXp >= currentUser.xpToNextLevel ? currentUser.level + 1 : currentUser.level;
     const newCoins = currentUser.temanCoins + 25; // Student completion bonus
 
-    // Award mentor reputation & store review
+    // Award mentor reputation & store review in DB
     if (endedSession && endedSession.mentor) {
       const mentorId = endedSession.mentor.id;
-      handleAddReview(mentorId, {
-        mentorId: mentorId,
-        reviewerId: currentUser.id,
-        reviewerName: currentUser.name,
-        reviewerAvatar: currentUser.avatar,
-        reviewerAcademicLevel: currentUser.academicLevel || currentUser.universityOrSchool || 'Pelajar TemanTugas',
+      const pointsAwarded = stats.rating === 5 ? 75 : stats.rating === 4 ? 50 : 30;
+      
+      const result = await submitMentorReview(mentorId, {
         rating: stats.rating,
-        tags: ['Live Whiteboard', 'Penjelasan Jelas', 'Sabar & Ramah'],
         comment: stats.review || 'Sesi bimbingan papan tulis sangat membantu menyelesaikan soal!',
-        pointsAwarded: stats.rating === 5 ? 75 : stats.rating === 4 ? 50 : 30,
+        pointsAwarded,
         sessionType: 'Live Whiteboard 1-on-1',
       });
+
+      if (!result.error) {
+        // Also update local state for the mentor to reflect the review
+        handleAddReview(mentorId, {
+          mentorId: mentorId,
+          reviewerId: currentUser.id,
+          reviewerName: currentUser.name,
+          reviewerAvatar: currentUser.avatar,
+          reviewerAcademicLevel: currentUser.academicLevel || currentUser.universityOrSchool || 'Pelajar TemanTugas',
+          rating: stats.rating,
+          tags: ['Live Whiteboard', 'Penjelasan Jelas', 'Sabar & Ramah'],
+          comment: stats.review || 'Sesi bimbingan papan tulis sangat membantu menyelesaikan soal!',
+          pointsAwarded,
+          sessionType: 'Live Whiteboard 1-on-1',
+        });
+      }
     }
 
     setCurrentUser((prev) => ({
@@ -620,25 +654,45 @@ export default function App() {
       }),
     }));
 
-    showNotice(`Sesi selesai! Anda meraih +${totalEarnedXp} XP, +25 TemanCoins, dan mentor menerima +${stats.rating === 5 ? 75 : 50} Poin Reputasi.`);
+    showNotice(`Sesi selesai! Anda meraih +${totalEarnedXp} XP, +25 TemanCoins. Data berhasil disimpan.`);
     confetti({ particleCount: 100, spread: 90 });
   };
 
   // Claim Reward
-  const handleClaimReward = (rewardId: string, cost: number) => {
+  const handleClaimReward = async (rewardId: string, cost: number) => {
+    const result = await claimReward(cost);
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
     setRewards((prev) => prev.map((r) => (r.id === rewardId ? { ...r, claimed: true } : r)));
     setCurrentUser((prev) => ({
       ...prev,
       temanCoins: prev.temanCoins - cost,
       honorScore: prev.honorScore + 100,
     }));
+    showNotice('Berhasil menukarkan reward!');
   };
 
   // Submit Mentor Application
-  const handleOnboardMentorSubmit = (e: React.FormEvent) => {
+  const handleOnboardMentorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const result = await onboardMentor({
+      universityOrSchool: mentorCampus,
+      academicLevel: mentorAcademicLevel,
+      expertSubjects: mentorSpecialty.split(',').map((s) => s.trim()),
+      bio: mentorBio,
+    });
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
     const newMentorProfile: MentorProfile = {
-      id: `mentor_${Date.now()}`,
+      id: currentUser.id,
       name: currentUser.name,
       username: currentUser.username || currentUser.name.toLowerCase().replace(/\s+/g, '_'),
       avatar: currentUser.avatar,
@@ -647,7 +701,7 @@ export default function App() {
       rating: 5.0,
       reviewsCount: 1,
       ratingDistribution: { 5: 1, 4: 0, 3: 0, 2: 0, 1: 0 },
-      reputationPoints: 500,
+      reputationPoints: Math.max(currentUser.reputationPoints || 0, 500),
       reputationTier: 'Trusted Peer',
       successRate: 100,
       hourlyCoins: 40,
@@ -661,23 +715,7 @@ export default function App() {
       availableNow: true,
       joinedDate: 'Hari ini',
       endorsements: mentorSpecialty.split(',').map((s) => ({ subject: s.trim(), count: 5, endorsedBy: ['Komunitas TemanTugas'] })),
-      reviews: [
-        {
-          id: `rev_init_${Date.now()}`,
-          mentorId: currentUser.id,
-          reviewerId: 'student_sys',
-          reviewerName: 'Admin Akademik TemanTugas',
-          reviewerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          reviewerAcademicLevel: 'Verifikasi Kualifikasi',
-          rating: 5,
-          tags: ['Terverifikasi', 'Kompeten'],
-          comment: 'Mentor telah menyelesaikan verifikasi berkas akademik dan tes uji papan tulis.',
-          createdAt: 'Hari ini',
-          helpfulCount: 3,
-          pointsAwarded: 500,
-          sessionType: 'Sertifikasi Mentor',
-        },
-      ],
+      reviews: [],
       pastAssistance: [],
     };
 

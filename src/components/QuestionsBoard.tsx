@@ -505,7 +505,7 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
                           <span className="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
                             <CheckCircle2 className="w-3 h-3" /> Solusi Diterima Asker
                           </span>
-                        ) : (
+                        ) : selectedQuestion.askerId === currentUser.id && (
                           <button
                             onClick={() => onAcceptAnswer(selectedQuestion.id, ans.id, selectedQuestion.bountyCoins)}
                             className="text-xs bg-white border border-slate-200 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 text-slate-700 font-semibold px-2.5 py-1 rounded-lg transition shadow-xs"
