@@ -32,6 +32,7 @@ interface WhiteboardProps {
   partnerName?: string;
   roomTitle?: string;
   presetFormula?: string;
+  pusherChannel?: any;
 }
 
 type ToolType = 'pen' | 'highlighter' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'triangle' | 'axis' | 'text' | 'formula';
@@ -144,6 +145,46 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [updateCanvasSize]);
+
+  // Pusher real-time sync
+  useEffect(() => {
+    if (!pusherChannel) return;
+
+    const handleAdd = (data: { element: WhiteboardElement }) => {
+      if (data.element.authorId === currentUser.id) return;
+      setElements((prev) => [...prev, data.element]);
+    };
+
+    const handleClear = () => {
+      setElements([]);
+    };
+
+    const handleFullSync = (data: { elements: WhiteboardElement[] }) => {
+      setElements(data.elements);
+    };
+
+    pusherChannel.bind('client-whiteboard-add', handleAdd);
+    pusherChannel.bind('client-whiteboard-clear', handleClear);
+    pusherChannel.bind('client-whiteboard-full-sync', handleFullSync);
+
+    return () => {
+      pusherChannel.unbind('client-whiteboard-add', handleAdd);
+      pusherChannel.unbind('client-whiteboard-clear', handleClear);
+      pusherChannel.unbind('client-whiteboard-full-sync', handleFullSync);
+    };
+  }, [pusherChannel, currentUser.id]);
+
+  const broadcastAdd = (el: WhiteboardElement) => {
+    if (pusherChannel) {
+      pusherChannel.trigger('client-whiteboard-add', { element: el });
+    }
+  };
+
+  const broadcastClear = () => {
+    if (pusherChannel) {
+      pusherChannel.trigger('client-whiteboard-clear', {});
+    }
+  };
 
   // Main canvas redraw engine
   const redrawCanvas = useCallback(() => {
@@ -505,6 +546,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       setRedoStack([]);
       setElements(updated);
       if (onElementsChange) onElementsChange(updated);
+      broadcastAdd(newEl);
     }
     setCurrentStroke([]);
   };
@@ -533,6 +575,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     setRedoStack([]);
     setElements(updated);
     if (onElementsChange) onElementsChange(updated);
+    broadcastAdd(newEl);
 
     setIsAddingText(false);
     setTextInput('');
@@ -561,8 +604,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     setRedoStack([]);
     setElements(updated);
     if (onElementsChange) onElementsChange(updated);
+    broadcastAdd(newEl);
     setShowFormulaPalette(false);
     showToast(`Rumus ${latexStr} disematkan ke kanvas!`);
+  };
+
+  const broadcastFullSync = (els: WhiteboardElement[]) => {
+    if (pusherChannel) {
+      pusherChannel.trigger('client-whiteboard-full-sync', { elements: els });
+    }
   };
 
   const handleUndo = () => {
@@ -572,6 +622,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     setRedoStack((prev) => [...prev, [last]]);
     setElements(remaining);
     if (onElementsChange) onElementsChange(remaining);
+    broadcastFullSync(remaining);
   };
 
   const handleRedo = () => {
@@ -581,6 +632,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     setRedoStack((prev) => prev.slice(0, -1));
     setElements(updated);
     if (onElementsChange) onElementsChange(updated);
+    broadcastFullSync(updated);
   };
 
   const handleClear = () => {
@@ -589,6 +641,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       setRedoStack((prev) => [...prev, elements]);
       setElements([]);
       if (onElementsChange) onElementsChange([]);
+      broadcastClear();
       showToast('Papan tulis dikosongkan.');
     }
   };

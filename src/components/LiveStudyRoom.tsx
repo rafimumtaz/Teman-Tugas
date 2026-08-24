@@ -84,6 +84,11 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   const [mentorAudioLevel, setMentorAudioLevel] = useState<number>(45);
   const [studentAudioLevel, setStudentAudioLevel] = useState<number>(20);
 
+  // WebRTC & Pusher State
+  const [pusherChannel, setPusherChannel] = useState<any>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
   // Timer interval
   useEffect(() => {
     const timer = setInterval(() => {
@@ -92,7 +97,95 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Voice level oscillation simulation
+  // Set up Pusher and WebRTC
+  useEffect(() => {
+    if (session.status === 'pending') return; // Don't connect until active
+
+    const initWebRTC = async () => {
+      import('../lib/pusherClient').then(({ getPusherClient }) => {
+        const pusher = getPusherClient();
+        const channelName = `presence-room-${session.id}`;
+        
+        pusher.unsubscribe(channelName);
+        const channel = pusher.subscribe(channelName);
+        setPusherChannel(channel);
+
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        peerConnectionRef.current = pc;
+
+        // Listen for remote tracks
+        pc.ontrack = (event) => {
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = event.streams[0];
+          }
+        };
+
+        // ICE Candidates
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            channel.trigger('client-webrtc-ice', { candidate: event.candidate, senderId: currentUser.id });
+          }
+        };
+
+        // Pusher Event Listeners
+        channel.bind('pusher:subscription_succeeded', async (members: any) => {
+          // If I am the mentor, I'll initiate the call (offer)
+          if (currentUser.id === session.mentor.id) {
+            if (localStream) {
+              localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            }
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+          }
+        });
+
+        channel.bind('client-webrtc-offer', async (data: any) => {
+          if (data.senderId === currentUser.id) return;
+          if (localStream) {
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+          }
+          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          channel.trigger('client-webrtc-answer', { answer, senderId: currentUser.id });
+        });
+
+        channel.bind('client-webrtc-answer', async (data: any) => {
+          if (data.senderId === currentUser.id) return;
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        });
+
+        channel.bind('client-webrtc-ice', async (data: any) => {
+          if (data.senderId === currentUser.id) return;
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (e) {
+            console.error("Error adding ICE candidate", e);
+          }
+        });
+
+        channel.bind('client-chat-message', (data: any) => {
+          setChatMessages((prev) => [...prev, data.message]);
+        });
+      });
+    };
+
+    initWebRTC();
+
+    return () => {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+      }
+      import('../lib/pusherClient').then(({ getPusherClient }) => {
+        getPusherClient().unsubscribe(`presence-room-${session.id}`);
+      });
+    };
+  }, [session.status, session.id]);
+
+  // Voice level oscillation simulation (keep for visual flair)
   useEffect(() => {
     const interval = setInterval(() => {
       if (isMicOn) {
@@ -105,21 +198,35 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
     return () => clearInterval(interval);
   }, [isMicOn]);
 
-  // Handle Camera toggling
+  // Handle Camera toggling & Local Media
   useEffect(() => {
     let stream: MediaStream | null = null;
     async function setupCamera() {
-      if (isCameraOn) {
+      if (isCameraOn || isMicOn) {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: isMicOn });
+          stream = await navigator.mediaDevices.getUserMedia({ video: isCameraOn, audio: isMicOn });
           setLocalStream(stream);
-          if (localVideoRef.current) {
+          if (localVideoRef.current && isCameraOn) {
             localVideoRef.current.srcObject = stream;
           }
           setMediaError(null);
+          
+          // Replace track in peer connection if already active
+          if (peerConnectionRef.current) {
+            const senders = peerConnectionRef.current.getSenders();
+            stream.getTracks().forEach(track => {
+              const sender = senders.find(s => s.track?.kind === track.kind);
+              if (sender) {
+                sender.replaceTrack(track);
+              } else {
+                peerConnectionRef.current?.addTrack(track, stream!);
+              }
+            });
+          }
+
         } catch (err: any) {
-          console.warn('Camera access not granted or unavailable, using high-fidelity avatar mode:', err);
-          setMediaError('Akses kamera tidak tersedia. Mode avatar aktif.');
+          console.warn('Media access not granted or unavailable:', err);
+          setMediaError('Akses media tidak tersedia.');
         }
       } else {
         if (localStream) {
@@ -135,7 +242,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         stream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [isCameraOn]);
+  }, [isCameraOn, isMicOn]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +258,12 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
     };
 
     setChatMessages((prev) => [...prev, newMsg]);
+    
+    // Broadcast message via Pusher
+    if (pusherChannel) {
+      pusherChannel.trigger('client-chat-message', { message: newMsg });
+    }
+
     setChatInput('');
     setTimeout(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -271,6 +384,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
               partnerName={session.mentor.name}
               roomTitle={`${session.subject}: ${session.title}`}
               presetFormula={session.targetEquation}
+              pusherChannel={pusherChannel}
             />
           </div>
 

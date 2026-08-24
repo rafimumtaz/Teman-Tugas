@@ -52,6 +52,9 @@ model User {
 
   questionsAsked Question[]       @relation("AskerQuestions")
   answersGiven   QuestionAnswer[] @relation("AnswerAuthor")
+
+  liveSessionsAsMentor  LiveSession[] @relation("MentorSessions")
+  liveSessionsAsStudent LiveSession[] @relation("StudentSessions")
 }
 
 model UserBadge {
@@ -153,4 +156,19 @@ model QuestionAnswer {
 
   authorId String
   author   User   @relation("AnswerAuthor", fields: [authorId], references: [id])
+}
+
+model LiveSession {
+  id          String   @id @default(cuid())
+  status      String   @default("pending") // "pending", "active", "completed", "rejected"
+  mentorId    String
+  studentId   String
+  questionId  String?
+  subject     String
+  createdAt   DateTime @default(now())
+
+  // Webrtc signaling fields if we fallback to DB signaling, but we use Pusher now, so we just track status.
+  
+  mentor      User     @relation("MentorSessions", fields: [mentorId], references: [id])
+  student     User     @relation("StudentSessions", fields: [studentId], references: [id])
 }

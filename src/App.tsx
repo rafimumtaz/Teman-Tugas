@@ -17,6 +17,8 @@ import {
 import { createQuestion, createAnswer, acceptAnswer, upvoteQuestion } from './app/actions/questions';
 import { submitMentorReview } from './app/actions/mentors';
 import { updateProfile, onboardMentor, claimReward } from './app/actions/users';
+import { requestLiveSession, acceptLiveSession, rejectLiveSession } from './app/actions/live-sessions';
+import { getPusherClient } from './lib/pusherClient';
 // Removed mock data imports as the app is now fully database-backed
 import { Navbar } from './components/Navbar';
 import { QuestionsBoard } from './components/QuestionsBoard';
@@ -93,6 +95,53 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
 
   // Toast / Banner
   const [bannerNotice, setBannerNotice] = useState<string | null>(null);
+
+  // Pusher / Live Session States
+  const [incomingSession, setIncomingSession] = useState<any | null>(null);
+
+  React.useEffect(() => {
+    if (!currentUser.id) return;
+    
+    const pusher = getPusherClient();
+    const channelName = `private-user-${currentUser.id}`;
+    
+    // Unsubscribe if already subscribed to prevent duplicates
+    pusher.unsubscribe(channelName);
+    
+    const channel = pusher.subscribe(channelName);
+    
+    channel.bind('incoming-session-request', (data: any) => {
+      // Only show if we are not already in a session
+      if (!activeSession) {
+        setIncomingSession(data);
+      }
+    });
+
+    channel.bind('session-accepted', (data: any) => {
+      // Setup the session for the student when mentor accepts
+      if (activeSession && activeSession.status === 'pending' && activeSession.id === data.sessionId) {
+        setActiveSession(prev => prev ? {
+          ...prev,
+          status: 'active',
+          mentor: data.mentor
+        } : null);
+        showNotice(`Mentor ${data.mentor.name} telah menerima sesi! Menghubungkan...`);
+      }
+    });
+
+    channel.bind('session-rejected', (data: any) => {
+      if (activeSession && activeSession.status === 'pending' && activeSession.id === data.sessionId) {
+        setActiveSession(null);
+        setCurrentTab('mentors');
+        showNotice('Maaf, mentor sedang tidak tersedia saat ini.');
+      }
+    });
+
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(channelName);
+    };
+  }, [currentUser.id, activeSession]);
 
   const showNotice = (msg: string) => {
     setBannerNotice(msg);
@@ -522,7 +571,7 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
   };
 
   // Start Live Session from Question
-  const handleStartLiveSessionFromQuestion = (q: Question) => {
+  const handleStartLiveSessionFromQuestion = async (q: Question) => {
     const isAsker = currentUser.id === q.askerId;
     
     // Default student is the asker of the question
@@ -538,11 +587,10 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
       audioLevel: 0,
     };
     
-    let mentorInfo;
-    
     if (!isAsker) {
       // The current user (who is NOT the asker) clicked to help, so they are the Mentor!
-      mentorInfo = {
+      // But the asker isn't necessarily online waiting. For simplicity, we just drop the mentor in.
+      const mentorInfo = {
         id: currentUser.id,
         name: currentUser.name,
         avatar: currentUser.avatar || '',
@@ -553,12 +601,34 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
         isSpeaking: true,
         audioLevel: 50,
       };
+
+      const newSession: StudyRoomSession = {
+        id: `room_${Date.now()}`,
+        title: q.title,
+        subject: q.subject,
+        questionId: q.id,
+        questionTitle: q.title,
+        targetEquation: q.rawEquation,
+        startedAt: Date.now(),
+        durationSeconds: 0,
+        status: 'active',
+        mentor: mentorInfo,
+        student: studentInfo,
+        messages: [],
+        sharedNotes: '',
+        sharedWhiteboard: [],
+        bountyCoins: q.bountyCoins,
+      };
+
+      setActiveSession(newSession);
+      setCurrentTab('whiteboard');
+      showNotice(`Terhubung! Menunggu ${q.askerName} untuk bergabung...`);
     } else {
       // The current user IS the asker. Check if there are answers to pick a mentor from.
       const topAnswer = q.answers.find(a => a.isAccepted) || q.answers[0];
       
       if (topAnswer) {
-        mentorInfo = {
+        const mentorInfo = {
           id: topAnswer.authorId,
           name: topAnswer.authorName,
           avatar: topAnswer.authorAvatar || '',
@@ -569,103 +639,97 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
           isSpeaking: false,
           audioLevel: 0,
         };
+
+        const res = await requestLiveSession(
+          mentorInfo.id,
+          currentUser.id,
+          q.subject,
+          q.id,
+          q.title,
+          studentInfo
+        );
+
+        if (res.success) {
+          setActiveSession({
+            id: res.sessionId as string,
+            title: q.title,
+            subject: q.subject,
+            startedAt: Date.now(),
+            durationSeconds: 0,
+            status: 'pending',
+            mentor: mentorInfo,
+            student: studentInfo,
+            messages: [],
+            sharedNotes: '',
+            sharedWhiteboard: [],
+            bountyCoins: q.bountyCoins,
+          });
+          setCurrentTab('whiteboard');
+          showNotice(`Menghubungi Mentor ${mentorInfo.name}...`);
+        } else {
+          showNotice(`Gagal menghubungi mentor: ${res.error}`);
+        }
       } else {
-        // No answers yet, wait for someone
-        mentorInfo = {
-          id: 'waiting',
-          name: 'Menunggu Mentor...',
-          avatar: 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-          role: 'mentor' as const,
-          isMicOn: false,
-          isCameraOn: false,
-          isHandRaised: false,
-          isSpeaking: false,
-          audioLevel: 0,
-        };
+        showNotice('Belum ada jawaban dari mentor. Tunggu seseorang menjawab dulu!');
       }
     }
-
-    const newSession: StudyRoomSession = {
-      id: `room_${Date.now()}`,
-      title: q.title,
-      subject: q.subject,
-      questionId: q.id,
-      questionTitle: q.title,
-      targetEquation: q.rawEquation,
-      startedAt: Date.now(),
-      durationSeconds: 0,
-      status: 'active',
-      mentor: mentorInfo,
-      student: studentInfo,
-      messages: mentorInfo.id !== 'waiting' ? [
-        {
-          id: 'msg-init',
-          senderId: mentorInfo.id,
-          senderName: mentorInfo.name,
-          senderAvatar: mentorInfo.avatar,
-          text: `Halo ${studentInfo.name}! Saya siap membantu membedah "${q.title}". Mari kita mulai uraikan di papan tulis ya.`,
-          timestamp: 'Baru saja',
-        },
-      ] : [],
-      sharedNotes: '',
-      sharedWhiteboard: [],
-      bountyCoins: q.bountyCoins,
-    };
-
-    setActiveSession(newSession);
-    setCurrentTab('whiteboard');
-    showNotice(`Sesi Live Audio-Visual & Whiteboard aktif! ${mentorInfo.id === 'waiting' ? 'Menunggu Mentor Bergabung...' : `Terhubung dengan ${mentorInfo.name}.`}`);
   };
 
   // Request Instant Session with Specific Mentor
-  const handleRequestInstantMentorSession = (mentor: MentorProfile) => {
-    const newSession: StudyRoomSession = {
-      id: `room_${Date.now()}`,
-      title: `Bimbingan 1-on-1 bersama ${mentor.name}`,
-      subject: mentor.specialties[0] || 'Matematika & Sains',
-      startedAt: Date.now(),
-      durationSeconds: 0,
-      status: 'active',
-      mentor: {
-        id: mentor.id,
-        name: mentor.name,
-        avatar: mentor.avatar,
-        role: 'mentor',
-        isMicOn: true,
-        isCameraOn: false,
-        isHandRaised: false,
-        isSpeaking: true,
-        audioLevel: 60,
-      },
-      student: {
-        id: currentUser.id,
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        role: 'student',
-        isMicOn: true,
-        isCameraOn: false,
-        isHandRaised: false,
-        isSpeaking: false,
-        audioLevel: 0,
-      },
-      messages: [
-        {
-          id: 'msg-1',
-          senderId: mentor.id,
-          senderName: mentor.name,
-          senderAvatar: mentor.avatar,
-          text: `Halo ${currentUser.name}! Senang bisa membimbing kamu hari ini. Silakan tulis soal atau rumus yang ingin kita diskusikan di whiteboard.`,
-          timestamp: 'Baru saja',
-        },
-      ],
-      sharedNotes: '',
-      sharedWhiteboard: [],
-      bountyCoins: mentor.hourlyCoins,
+  const handleRequestInstantMentorSession = async (mentor: MentorProfile) => {
+    const studentInfo = {
+      id: currentUser.id,
+      name: currentUser.name,
+      avatar: currentUser.avatar,
+      role: 'student' as const,
+      isMicOn: true,
+      isCameraOn: false,
+      isHandRaised: false,
+      isSpeaking: false,
+      audioLevel: 0,
     };
 
-    setActiveSession(newSession);
-    setCurrentTab('whiteboard');
-    showNotice(`Terhubung ke ruang belajar 1-on-1 dengan ${mentor.name}!`);
+    const res = await requestLiveSession(
+      mentor.id,
+      currentUser.id,
+      mentor.specialties[0] || 'Matematika & Sains',
+      undefined,
+      `Bimbingan 1-on-1 dengan ${mentor.name}`,
+      studentInfo
+    );
+
+    if (res.success) {
+      const newSession: StudyRoomSession = {
+        id: res.sessionId as string,
+        title: `Bimbingan 1-on-1 bersama ${mentor.name}`,
+        subject: mentor.specialties[0] || 'Matematika & Sains',
+        startedAt: Date.now(),
+        durationSeconds: 0,
+        status: 'pending',
+        mentor: {
+          id: mentor.id,
+          name: mentor.name,
+          avatar: mentor.avatar,
+          role: 'mentor',
+          isMicOn: true,
+          isCameraOn: false,
+          isHandRaised: false,
+          isSpeaking: true,
+          audioLevel: 60,
+        },
+        student: studentInfo,
+        messages: [],
+        sharedNotes: '',
+        sharedWhiteboard: [],
+        bountyCoins: mentor.hourlyCoins,
+      };
+
+      setActiveSession(newSession);
+      setCurrentTab('whiteboard');
+      showNotice(`Menghubungi Mentor ${mentor.name}... Mohon tunggu.`);
+    } else {
+      showNotice(`Gagal menghubungi mentor: ${res.error}`);
+    }
   };
 
   // End Session & Trigger Rewards and Mentor Reputation
@@ -1083,6 +1147,76 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Incoming Session Request Modal */}
+      {incomingSession && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95">
+            <div className="w-20 h-20 rounded-full mx-auto relative shadow-inner">
+              <img src={incomingSession.student.avatar} alt="Student" className="w-full h-full object-cover rounded-full border-4 border-indigo-100" />
+              <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-2 rounded-full ring-4 ring-white animate-pulse">
+                <Video className="w-4 h-4" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-xl font-extrabold text-slate-900">Panggilan Sesi Baru!</h3>
+              <p className="text-sm text-slate-600">
+                <strong className="text-slate-800">{incomingSession.student.name}</strong> meminta bimbingan live untuk materi <span className="font-semibold text-indigo-600">{incomingSession.subject}</span>.
+              </p>
+              <p className="text-xs text-slate-500 italic">"{incomingSession.questionTitle}"</p>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={async () => {
+                  await rejectLiveSession(incomingSession.sessionId, incomingSession.studentId);
+                  setIncomingSession(null);
+                }}
+                className="flex-1 py-3 rounded-2xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 font-bold transition"
+              >
+                Tolak
+              </button>
+              <button
+                onClick={async () => {
+                  const mentorProfile = {
+                    id: currentUser.id,
+                    name: currentUser.name,
+                    avatar: currentUser.avatar,
+                    role: 'mentor',
+                    isMicOn: true,
+                    isCameraOn: false,
+                    isHandRaised: false,
+                    isSpeaking: false,
+                    audioLevel: 50,
+                  };
+                  await acceptLiveSession(incomingSession.sessionId, mentorProfile, incomingSession.studentId);
+                  setIncomingSession(null);
+                  
+                  // Open room
+                  setActiveSession({
+                    id: incomingSession.sessionId,
+                    title: incomingSession.questionTitle,
+                    subject: incomingSession.subject,
+                    startedAt: Date.now(),
+                    durationSeconds: 0,
+                    status: 'active',
+                    mentor: mentorProfile as any,
+                    student: { ...incomingSession.student, role: 'student', isMicOn: true, isCameraOn: false, isHandRaised: false, isSpeaking: false, audioLevel: 0 },
+                    messages: [],
+                    sharedNotes: '',
+                    sharedWhiteboard: [],
+                    bountyCoins: 30, // Default or pass from request
+                  });
+                  setCurrentTab('whiteboard');
+                }}
+                className="flex-1 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30 transition"
+              >
+                Terima & Mulai
+              </button>
+            </div>
           </div>
         </div>
       )}
