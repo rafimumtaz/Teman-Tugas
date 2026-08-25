@@ -944,7 +944,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
             
             <div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                {sessionEndedReason === 'mentor_left' ? 'Sesi Selesai' : 'Siswa Selesai'}
+                {sessionEndedReason === 'mentor_left' ? 'Sesi Selesai' : 'Sesi Selesai'}
               </h3>
               <p className="text-sm text-slate-600">
                 {sessionEndedReason === 'mentor_left' 
