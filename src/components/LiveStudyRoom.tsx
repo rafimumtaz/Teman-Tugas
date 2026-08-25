@@ -89,6 +89,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
 
   // Timer interval
   useEffect(() => {
@@ -138,10 +139,17 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           });
         };
 
-        // Listen for remote tracks
+        // Listen for remote tracks and aggregate them into a single continuous MediaStream
         pc.ontrack = (event) => {
+          if (!remoteStreamRef.current) {
+            remoteStreamRef.current = new MediaStream();
+          }
+          remoteStreamRef.current.addTrack(event.track);
+
           if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = event.streams[0];
+            if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
+              remoteVideoRef.current.srcObject = remoteStreamRef.current;
+            }
             remoteVideoRef.current.play().catch(e => console.warn("Remote play failed", e));
           }
         };
