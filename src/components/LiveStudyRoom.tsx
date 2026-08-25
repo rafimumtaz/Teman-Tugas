@@ -87,7 +87,6 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   // WebRTC & Pusher State
   const [pusherChannel, setPusherChannel] = useState<any>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
