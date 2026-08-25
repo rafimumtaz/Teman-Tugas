@@ -46,6 +46,9 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
   const [isHandRaised, setIsHandRaised] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'whiteboard' | 'chat' | 'checklist'>('whiteboard');
+  const [sessionEndedReason, setSessionEndedReason] = useState<'mentor_left' | 'student_completed' | null>(null);
+
+  const isCurrentUserMentor = currentUser.id === session.mentor.id;
 
   // Real WebRTC / MediaStream state
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -256,6 +259,14 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         channel.bind('room-chat-message', (data: any) => {
           setChatMessages((prev) => [...prev, data.message]);
         });
+
+        channel.bind('room-mentor-left', () => {
+          setSessionEndedReason('mentor_left');
+        });
+
+        channel.bind('room-student-completed', () => {
+          setSessionEndedReason('student_completed');
+        });
       });
     };
 
@@ -393,11 +404,41 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   };
 
   const handleConfirmFinish = () => {
+    if (pusherChannel) {
+      const socketId = pusherChannel.pusher?.connection?.socket_id;
+      fetch('/api/pusher/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: pusherChannel.name,
+          event: 'room-student-completed',
+          data: {},
+          socket_id: socketId
+        })
+      }).catch(console.error);
+    }
     onEndSession({
       rating: mentorRating,
       review: reviewNote,
       bonusCoins: awardedBonus,
     });
+  };
+
+  const handleMentorLeave = () => {
+    if (pusherChannel) {
+      const socketId = pusherChannel.pusher?.connection?.socket_id;
+      fetch('/api/pusher/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: pusherChannel.name,
+          event: 'room-mentor-left',
+          data: {},
+          socket_id: socketId
+        })
+      }).catch(console.error);
+    }
+    onLeaveRoom();
   };
 
   const toggleStep = (id: string) => {
@@ -458,13 +499,15 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
             </button>
           )}
 
-          <button
-            onClick={handleFinishRoom}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs transition"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Selesaikan Sesi</span>
-          </button>
+          {!isCurrentUserMentor && (
+            <button
+              onClick={handleFinishRoom}
+              className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs transition"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Selesaikan Sesi</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -488,8 +531,6 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           {/* Floating Audio-Visual Participant Tiles (Top-Right of Canvas) */}
           <div className="absolute top-6 right-6 z-30 flex flex-col sm:flex-row gap-2.5 pointer-events-auto">
             {(() => {
-              const isCurrentUserMentor = currentUser.id === session.mentor.id;
-              
               const partnerProfile = isCurrentUserMentor ? session.student : session.mentor;
               const partnerLabel = isCurrentUserMentor ? 'Siswa' : 'Mentor Rekan';
               const partnerRoleDesc = isCurrentUserMentor ? 'Pelajar' : 'Senior Peer Tutor';
@@ -785,13 +826,15 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
 
         {/* Right: Leave / End Call */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={onLeaveRoom}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl transition"
-          >
-            <PhoneOff className="w-4 h-4 text-rose-500" />
-            <span className="hidden sm:inline">Keluar Sesi</span>
-          </button>
+          {isCurrentUserMentor && (
+            <button
+              onClick={handleMentorLeave}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl transition"
+            >
+              <PhoneOff className="w-4 h-4 text-rose-500" />
+              <span className="hidden sm:inline">Keluar Sesi</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -885,6 +928,37 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
                 Kirim & Selesaikan
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Ended Modals */}
+      {sessionEndedReason && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-full bg-slate-100 mx-auto flex items-center justify-center">
+              <span className="text-2xl">
+                {sessionEndedReason === 'mentor_left' ? '👋' : '🎉'}
+              </span>
+            </div>
+            
+            <div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
+                {sessionEndedReason === 'mentor_left' ? 'Sesi Selesai' : 'Siswa Selesai'}
+              </h3>
+              <p className="text-sm text-slate-600">
+                {sessionEndedReason === 'mentor_left' 
+                  ? 'Mentor telah meninggalkan sesi.' 
+                  : 'Siswa telah menyelesaikan sesi ini dan memberikan ulasan.'}
+              </p>
+            </div>
+
+            <button
+              onClick={onLeaveRoom}
+              className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
