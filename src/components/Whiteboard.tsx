@@ -152,7 +152,6 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     if (!pusherChannel) return;
 
     const handleAdd = (data: { element: WhiteboardElement }) => {
-      if (data.element.authorId === currentUser.id) return;
       setElements((prev) => {
         const updated = [...prev, data.element];
         if (onElementsChange) onElementsChange(updated);
@@ -170,27 +169,40 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       if (onElementsChange) onElementsChange(data.elements);
     };
 
-    pusherChannel.bind('client-whiteboard-add', handleAdd);
-    pusherChannel.bind('client-whiteboard-clear', handleClear);
-    pusherChannel.bind('client-whiteboard-full-sync', handleFullSync);
+    pusherChannel.bind('room-whiteboard-add', handleAdd);
+    pusherChannel.bind('room-whiteboard-clear', handleClear);
+    pusherChannel.bind('room-whiteboard-full-sync', handleFullSync);
 
     return () => {
-      pusherChannel.unbind('client-whiteboard-add', handleAdd);
-      pusherChannel.unbind('client-whiteboard-clear', handleClear);
-      pusherChannel.unbind('client-whiteboard-full-sync', handleFullSync);
+      pusherChannel.unbind('room-whiteboard-add', handleAdd);
+      pusherChannel.unbind('room-whiteboard-clear', handleClear);
+      pusherChannel.unbind('room-whiteboard-full-sync', handleFullSync);
     };
   }, [pusherChannel, currentUser.id]);
 
-  const broadcastAdd = (el: WhiteboardElement) => {
+  // Helper to trigger events via server API
+  const triggerEvent = (eventName: string, eventData: any) => {
     if (pusherChannel) {
-      pusherChannel.trigger('client-whiteboard-add', { element: el });
+      const socketId = pusherChannel.pusher?.connection?.socket_id;
+      fetch('/api/pusher/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: pusherChannel.name,
+          event: eventName,
+          data: eventData,
+          socket_id: socketId
+        })
+      }).catch(console.error);
     }
   };
 
+  const broadcastAdd = (el: WhiteboardElement) => {
+    triggerEvent('room-whiteboard-add', { element: el });
+  };
+
   const broadcastClear = () => {
-    if (pusherChannel) {
-      pusherChannel.trigger('client-whiteboard-clear', {});
-    }
+    triggerEvent('room-whiteboard-clear', {});
   };
 
   // Main canvas redraw engine
@@ -617,9 +629,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   };
 
   const broadcastFullSync = (els: WhiteboardElement[]) => {
-    if (pusherChannel) {
-      pusherChannel.trigger('client-whiteboard-full-sync', { elements: els });
-    }
+    triggerEvent('room-whiteboard-full-sync', { elements: els });
   };
 
   const handleUndo = () => {

@@ -115,6 +115,21 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         });
         peerConnectionRef.current = pc;
 
+        // Helper to trigger events via server API (bypasses Pusher client events limitation)
+        const triggerEvent = async (eventName: string, eventData: any) => {
+          const socketId = pusher.connection.socket_id;
+          await fetch('/api/pusher/trigger', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              channel: channelName,
+              event: eventName,
+              data: eventData,
+              socket_id: socketId
+            })
+          });
+        };
+
         // Listen for remote tracks
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
@@ -125,7 +140,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         // ICE Candidates
         pc.onicecandidate = (event) => {
           if (event.candidate) {
-            channel.trigger('client-webrtc-ice', { candidate: event.candidate, senderId: currentUser.id });
+            triggerEvent('room-webrtc-ice', { candidate: event.candidate, senderId: currentUser.id });
           }
         };
 
@@ -134,7 +149,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+            triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
           } catch (e) {
             console.error("Error creating offer on negotiation needed", e);
           }
@@ -148,7 +163,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
             try {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
             } catch (e) {
               console.error(e);
             }
@@ -161,27 +176,25 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
             try {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
             } catch (e) {
               console.error(e);
             }
           }
         });
 
-        channel.bind('client-webrtc-offer', async (data: any) => {
-          if (data.senderId === currentUser.id) return;
+        channel.bind('room-webrtc-offer', async (data: any) => {
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            channel.trigger('client-webrtc-answer', { answer, senderId: currentUser.id });
+            triggerEvent('room-webrtc-answer', { answer, senderId: currentUser.id });
           } catch (e) {
             console.error("Error handling offer", e);
           }
         });
 
-        channel.bind('client-webrtc-answer', async (data: any) => {
-          if (data.senderId === currentUser.id) return;
+        channel.bind('room-webrtc-answer', async (data: any) => {
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
           } catch (e) {
@@ -189,8 +202,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           }
         });
 
-        channel.bind('client-webrtc-ice', async (data: any) => {
-          if (data.senderId === currentUser.id) return;
+        channel.bind('room-webrtc-ice', async (data: any) => {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
           } catch (e) {
@@ -198,7 +210,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           }
         });
 
-        channel.bind('client-chat-message', (data: any) => {
+        channel.bind('room-chat-message', (data: any) => {
           setChatMessages((prev) => [...prev, data.message]);
         });
       });
@@ -290,9 +302,19 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
 
     setChatMessages((prev) => [...prev, newMsg]);
     
-    // Broadcast message via Pusher
+    // Broadcast message via server API
     if (pusherChannel) {
-      pusherChannel.trigger('client-chat-message', { message: newMsg });
+      const socketId = pusherChannel.pusher?.connection?.socket_id;
+      fetch('/api/pusher/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: pusherChannel.name,
+          event: 'room-chat-message',
+          data: { message: newMsg },
+          socket_id: socketId
+        })
+      }).catch(console.error);
     }
 
     setChatInput('');
@@ -412,7 +434,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
               initialElements={whiteboardElements}
               onElementsChange={setWhiteboardElements}
               currentUser={{ id: currentUser.id, name: currentUser.name }}
-              partnerName={session.mentor.name}
+              partnerName={currentUser.id === session.mentor.id ? session.student.name : session.mentor.name}
               roomTitle={`${session.subject}: ${session.title}`}
               presetFormula={session.targetEquation}
               pusherChannel={pusherChannel}
