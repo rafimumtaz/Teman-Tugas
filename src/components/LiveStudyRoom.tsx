@@ -129,33 +129,64 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           }
         };
 
-        // Pusher Event Listeners
-        channel.bind('pusher:subscription_succeeded', async (members: any) => {
-          // If I am the mentor, I'll initiate the call (offer)
-          if (currentUser.id === session.mentor.id) {
-            if (localStream) {
-              localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            }
+        // Negotiation needed for dynamic tracks
+        pc.onnegotiationneeded = async () => {
+          try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+          } catch (e) {
+            console.error("Error creating offer on negotiation needed", e);
+          }
+        };
+
+        // Pusher Event Listeners
+        channel.bind('pusher:subscription_succeeded', async (members: any) => {
+          // Both can trigger onnegotiationneeded when they add tracks later
+          if (members.count > 1 && currentUser.id === session.mentor.id) {
+            // Force negotiation if we are already in the room with others
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        });
+
+        channel.bind('pusher:member_added', async (member: any) => {
+          // When a new member joins, mentor initiates the offer
+          if (currentUser.id === session.mentor.id) {
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              channel.trigger('client-webrtc-offer', { offer, senderId: currentUser.id });
+            } catch (e) {
+              console.error(e);
+            }
           }
         });
 
         channel.bind('client-webrtc-offer', async (data: any) => {
           if (data.senderId === currentUser.id) return;
-          if (localStream) {
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            channel.trigger('client-webrtc-answer', { answer, senderId: currentUser.id });
+          } catch (e) {
+            console.error("Error handling offer", e);
           }
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          channel.trigger('client-webrtc-answer', { answer, senderId: currentUser.id });
         });
 
         channel.bind('client-webrtc-answer', async (data: any) => {
           if (data.senderId === currentUser.id) return;
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          } catch (e) {
+            console.error("Error handling answer", e);
+          }
         });
 
         channel.bind('client-webrtc-ice', async (data: any) => {
@@ -183,7 +214,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         getPusherClient().unsubscribe(`presence-room-${session.id}`);
       });
     };
-  }, [session.status, session.id]);
+  }, [session.status, session.id, currentUser.id, session.mentor.id]);
 
   // Voice level oscillation simulation (keep for visual flair)
   useEffect(() => {
@@ -418,13 +449,19 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
 
                     <div className="flex items-center gap-2.5">
                       <div className="relative">
+                        <video
+                          ref={remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500 shadow-xs absolute inset-0 z-10"
+                        />
                         <img
                           src={partnerProfile.avatar}
                           alt={partnerProfile.name}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500 shadow-xs"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500 shadow-xs relative z-0"
                         />
                         {partnerAudioLvl > 30 && (
-                          <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full ring-2 ring-white animate-pulse">
+                          <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white p-0.5 rounded-full ring-2 ring-white animate-pulse z-20">
                             <Volume2 className="w-2.5 h-2.5" />
                           </div>
                         )}

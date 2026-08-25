@@ -153,15 +153,21 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
     const handleAdd = (data: { element: WhiteboardElement }) => {
       if (data.element.authorId === currentUser.id) return;
-      setElements((prev) => [...prev, data.element]);
+      setElements((prev) => {
+        const updated = [...prev, data.element];
+        if (onElementsChange) onElementsChange(updated);
+        return updated;
+      });
     };
 
     const handleClear = () => {
       setElements([]);
+      if (onElementsChange) onElementsChange([]);
     };
 
     const handleFullSync = (data: { elements: WhiteboardElement[] }) => {
       setElements(data.elements);
+      if (onElementsChange) onElementsChange(data.elements);
     };
 
     pusherChannel.bind('client-whiteboard-add', handleAdd);
