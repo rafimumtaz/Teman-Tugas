@@ -134,6 +134,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         pc.ontrack = (event) => {
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = event.streams[0];
+            remoteVideoRef.current.play().catch(e => console.warn("Remote play failed", e));
           }
         };
 
@@ -146,20 +147,35 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
 
         // Negotiation needed for dynamic tracks
         pc.onnegotiationneeded = async () => {
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
-          } catch (e) {
-            console.error("Error creating offer on negotiation needed", e);
+          if (currentUser.id === session.mentor.id) {
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
+            } catch (e) {
+              console.error("Error creating offer on negotiation needed", e);
+            }
+          } else {
+            // Ask mentor to renegotiate
+            triggerEvent('room-webrtc-renegotiate', { senderId: currentUser.id });
           }
         };
 
-        // Pusher Event Listeners
+        // When student asks for renegotiation, mentor sends new offer
+        channel.bind('room-webrtc-renegotiate', async () => {
+          if (currentUser.id === session.mentor.id) {
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
+            } catch (e) {
+              console.error("Error renegotiating", e);
+            }
+          }
+        });
+
         channel.bind('pusher:subscription_succeeded', async (members: any) => {
-          // Both can trigger onnegotiationneeded when they add tracks later
           if (members.count > 1 && currentUser.id === session.mentor.id) {
-            // Force negotiation if we are already in the room with others
             try {
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
@@ -171,7 +187,6 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         });
 
         channel.bind('pusher:member_added', async (member: any) => {
-          // When a new member joins, mentor initiates the offer
           if (currentUser.id === session.mentor.id) {
             try {
               const offer = await pc.createOffer();
