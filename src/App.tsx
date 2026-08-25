@@ -98,6 +98,7 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
 
   // Pusher / Live Session States
   const [incomingSession, setIncomingSession] = useState<any | null>(null);
+  const [declinedSessionMentor, setDeclinedSessionMentor] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (!currentUser.id) return;
@@ -125,15 +126,15 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
           status: 'active',
           mentor: data.mentor
         } : null);
+        setCurrentTab('whiteboard');
         showNotice(`Mentor ${data.mentor.name} telah menerima sesi! Menghubungkan...`);
       }
     });
 
     channel.bind('session-rejected', (data: any) => {
       if (activeSession && activeSession.status === 'pending' && activeSession.id === data.sessionId) {
+        setDeclinedSessionMentor(activeSession.mentor.name);
         setActiveSession(null);
-        setCurrentTab('mentors');
-        showNotice('Maaf, mentor sedang tidak tersedia saat ini.');
       }
     });
 
@@ -664,7 +665,6 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
             sharedWhiteboard: [],
             bountyCoins: q.bountyCoins,
           });
-          setCurrentTab('whiteboard');
           showNotice(`Menghubungi Mentor ${mentorInfo.name}...`);
         } else {
           showNotice(`Gagal menghubungi mentor: ${res.error}`);
@@ -725,7 +725,6 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
       };
 
       setActiveSession(newSession);
-      setCurrentTab('whiteboard');
       showNotice(`Menghubungi Mentor ${mentor.name}... Mohon tunggu.`);
     } else {
       showNotice(`Gagal menghubungi mentor: ${res.error}`);
@@ -1217,6 +1216,60 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
                 Terima & Mulai
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for Mentor Modal */}
+      {activeSession?.status === 'pending' && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center flex flex-col items-center animate-in zoom-in-95">
+            {/* Animated Spinner */}
+            <div className="relative flex items-center justify-center w-20 h-20 mb-6">
+              <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
+              <Video className="w-8 h-8 text-indigo-600 animate-pulse" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Menunggu Mentor...</h3>
+            <p className="text-sm text-slate-600 mb-6">
+              Permintaan sesi Anda telah dikirim ke <strong className="text-slate-800">{activeSession.mentor.name}</strong>. Mohon tunggu sebentar untuk diterima.
+            </p>
+
+            <button
+              onClick={async () => {
+                await rejectLiveSession(activeSession.id, currentUser.id);
+                setActiveSession(null);
+              }}
+              className="px-6 py-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold transition-colors w-full"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mentor Declined Modal */}
+      {declinedSessionMentor && (
+        <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-full bg-rose-100 mx-auto flex items-center justify-center">
+              <span className="text-2xl">😔</span>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Mentor Tidak Tersedia</h3>
+              <p className="text-sm text-slate-600">
+                Maaf, mentor <strong className="text-slate-800">{declinedSessionMentor}</strong> saat ini sedang tidak dapat menerima sesi bimbingan.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setDeclinedSessionMentor(null)}
+              className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
