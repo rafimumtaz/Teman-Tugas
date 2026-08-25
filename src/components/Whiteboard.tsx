@@ -20,7 +20,10 @@ import {
   Sigma,
   Pi,
   Divide,
-  Check
+  Check,
+  Hand,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { WhiteboardElement, WhiteboardPoint } from '../types';
 
@@ -35,7 +38,7 @@ interface WhiteboardProps {
   pusherChannel?: any;
 }
 
-type ToolType = 'pen' | 'highlighter' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'triangle' | 'axis' | 'text' | 'formula';
+type ToolType = 'pen' | 'highlighter' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'triangle' | 'axis' | 'text' | 'formula' | 'pan';
 type BgMode = 'grid' | 'dots' | 'plain' | 'dark_grid';
 
 const MATH_SYMBOLS = [
@@ -95,6 +98,12 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   const [customEquationInput, setCustomEquationInput] = useState<string>('');
   const [showFormulaPalette, setShowFormulaPalette] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Pan and Zoom State
+  const [scale, setScale] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -218,57 +227,63 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     // 1. Draw Background
     ctx.clearRect(0, 0, width, height);
 
+    ctx.save();
+    
+    // Draw solid background first without transform
     if (bgMode === 'dark_grid') {
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(0, 0, width, height);
-      ctx.strokeStyle = '#1e293b';
-      ctx.lineWidth = 1;
-      const step = 30;
-      for (let x = 0; x < width; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < height; y += step) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-    } else if (bgMode === 'grid') {
-      ctx.fillStyle = '#f8fafc';
+    } else if (bgMode === 'grid' || bgMode === 'plain') {
+      ctx.fillStyle = bgMode === 'grid' ? '#f8fafc' : '#ffffff';
       ctx.fillRect(0, 0, width, height);
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 1;
-      const step = 30;
-      for (let x = 0; x < width; x += step) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < height; y += step) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
     } else if (bgMode === 'dots') {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
+    }
+
+    // Apply transform for grid and elements
+    ctx.translate(pan.x, pan.y);
+    ctx.scale(scale, scale);
+
+    const startX = -pan.x / scale;
+    const startY = -pan.y / scale;
+    const endX = (width - pan.x) / scale;
+    const endY = (height - pan.y) / scale;
+
+    if (bgMode === 'dark_grid' || bgMode === 'grid') {
+      ctx.strokeStyle = bgMode === 'dark_grid' ? '#1e293b' : '#e2e8f0';
+      ctx.lineWidth = 1 / scale;
+      const step = 30;
+      
+      const offsetX = startX % step;
+      const offsetY = startY % step;
+      
+      for (let x = startX - offsetX - step; x <= endX + step; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, startY);
+        ctx.lineTo(x, endY);
+        ctx.stroke();
+      }
+      for (let y = startY - offsetY - step; y <= endY + step; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(endX, y);
+        ctx.stroke();
+      }
+    } else if (bgMode === 'dots') {
       ctx.fillStyle = '#cbd5e1';
       const step = 25;
-      for (let x = 15; x < width; x += step) {
-        for (let y = 15; y < height; y += step) {
+      
+      const offsetX = startX % step;
+      const offsetY = startY % step;
+      
+      for (let x = startX - offsetX - step; x <= endX + step; x += step) {
+        for (let y = startY - offsetY - step; y <= endY + step; y += step) {
           ctx.beginPath();
-          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.arc(x, y, 1.5 / scale, 0, Math.PI * 2);
           ctx.fill();
         }
       }
-    } else {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
     }
 
     // 2. Draw Elements
@@ -474,7 +489,9 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       }
       ctx.restore();
     }
-  }, [elements, bgMode, isDrawing, currentStroke, activeTool, activeColor, strokeWidth]);
+    
+    ctx.restore();
+  }, [elements, bgMode, isDrawing, currentStroke, activeTool, activeColor, strokeWidth, pan, scale]);
 
   useEffect(() => {
     redrawCanvas();
@@ -498,13 +515,24 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     }
 
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: (clientX - rect.left - pan.x) / scale,
+      y: (clientY - rect.top - pan.y) / scale,
     };
   };
 
   const handlePointerDown = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (readOnly) return;
+
+    // Middle click or Pan tool
+    const isMiddleClick = 'button' in e && (e as React.MouseEvent).button === 1;
+    if (isMiddleClick || activeTool === 'pan') {
+      setIsPanning(true);
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+      setLastPanPoint({ x: clientX, y: clientY });
+      return;
+    }
+
     const pt = getCanvasCoords(e);
     if (!pt) return;
 
@@ -533,7 +561,19 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   };
 
   const handlePointerMove = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || readOnly) return;
+    if (readOnly) return;
+
+    if (isPanning && lastPanPoint) {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+      const dx = clientX - lastPanPoint.x;
+      const dy = clientY - lastPanPoint.y;
+      setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      setLastPanPoint({ x: clientX, y: clientY });
+      return;
+    }
+
+    if (!isDrawing) return;
     const pt = getCanvasCoords(e);
     if (!pt) return;
 
@@ -546,7 +586,15 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
   };
 
   const handlePointerUp = () => {
-    if (!isDrawing || readOnly) return;
+    if (readOnly) return;
+
+    if (isPanning) {
+      setIsPanning(false);
+      setLastPanPoint(null);
+      return;
+    }
+
+    if (!isDrawing) return;
     setIsDrawing(false);
 
     if (currentStroke.length > 0) {
@@ -674,6 +722,57 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
     showToast('Gambar papan tulis berhasil diunduh!');
   };
 
+  const resetView = () => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const zoomIn = () => {
+    setScale(prev => Math.min(prev * 1.2, 5));
+  };
+
+  const zoomOut = () => {
+    setScale(prev => Math.max(prev / 1.2, 0.1));
+  };
+
+  // Add passive: false to wheel event listener for preventDefault to work
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const zoomFactor = 0.001;
+        const delta = -e.deltaY * zoomFactor;
+        const newScale = Math.min(Math.max(0.1, scale * (1 + delta)), 5);
+        
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX - rect.left;
+        const clientY = e.clientY - rect.top;
+        
+        const mousePointTo = {
+          x: (clientX - pan.x) / scale,
+          y: (clientY - pan.y) / scale,
+        };
+
+        const newPan = {
+          x: clientX - mousePointTo.x * newScale,
+          y: clientY - mousePointTo.y * newScale,
+        };
+
+        setScale(newScale);
+        setPan(newPan);
+      } else {
+        setPan(prev => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY
+        }));
+      }
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [scale, pan]);
+
   return (
     <div id="whiteboard-container" className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs relative select-none">
       {/* Toast */}
@@ -752,15 +851,33 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
 
           <div className="h-4 w-px bg-slate-200 mx-1" />
 
-          <button
-            id="wb-btn-clear"
-            onClick={handleClear}
-            disabled={elements.length === 0 || readOnly}
-            title="Bersihkan Kanvas"
-            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 disabled:opacity-30 rounded-lg transition cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {/* Zoom Controls */}
+          <div className="flex bg-slate-100 border border-slate-200 rounded-lg p-0.5 text-xs">
+            <button
+              onClick={zoomOut}
+              className="p-1 text-slate-600 hover:text-slate-900 transition cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={resetView}
+              className="px-2 text-slate-600 hover:text-slate-900 font-mono text-[10px] flex items-center justify-center cursor-pointer font-bold"
+              title="Reset View"
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              onClick={zoomIn}
+              className="p-1 text-slate-600 hover:text-slate-900 transition cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="h-4 w-px bg-slate-200 mx-1" />
+
           <button
             id="wb-btn-export"
             onClick={handleExportImage}
@@ -773,7 +890,7 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
       </div>
 
       {/* Main Canvas + Floating Toolbar Area */}
-      <div ref={containerRef} className="flex-1 relative w-full h-full overflow-hidden bg-slate-50 cursor-crosshair">
+      <div ref={containerRef} className={`flex-1 relative w-full h-full overflow-hidden bg-slate-50 ${activeTool === 'pan' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'}`}>
         <canvas
           ref={canvasRef}
           onMouseDown={handlePointerDown}
@@ -826,6 +943,17 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
             {/* Drawing Tools */}
             <div className="flex flex-col gap-1">
               <button
+                id="tool-pan"
+                onClick={() => setActiveTool('pan')}
+                title="Geser Kanvas (Pan)"
+                className={`p-2 rounded-xl transition cursor-pointer ${activeTool === 'pan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Hand className="w-4 h-4" />
+              </button>
+
+              <div className="h-px bg-slate-200 my-1" />
+
+              <button
                 id="tool-pen"
                 onClick={() => setActiveTool('pen')}
                 title="Pena Matematika (Pen)"
@@ -841,6 +969,16 @@ export const Whiteboard: React.FC<WhiteboardProps> = ({
                 className={`p-2 rounded-xl transition cursor-pointer ${activeTool === 'highlighter' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
               >
                 <Highlighter className="w-4 h-4" />
+              </button>
+
+              <button
+                id="wb-btn-clear"
+                onClick={handleClear}
+                disabled={elements.length === 0 || readOnly}
+                title="Bersihkan Semua (Clear All)"
+                className="p-2 rounded-xl transition cursor-pointer text-rose-500 hover:text-white hover:bg-rose-500 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-rose-500"
+              >
+                <Trash2 className="w-4 h-4" />
               </button>
 
               <button

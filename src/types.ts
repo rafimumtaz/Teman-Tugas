@@ -188,7 +188,7 @@ export interface WhiteboardPoint {
 
 export interface WhiteboardElement {
   id: string;
-  tool: 'pen' | 'highlighter' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'triangle' | 'axis' | 'text' | 'formula';
+  tool: 'pen' | 'highlighter' | 'eraser' | 'line' | 'arrow' | 'rect' | 'circle' | 'triangle' | 'axis' | 'text' | 'formula' | 'pan';
   color: string;
   size: number;
   points: WhiteboardPoint[];
