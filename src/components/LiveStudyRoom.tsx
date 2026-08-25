@@ -87,7 +87,6 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   // WebRTC & Pusher State
   const [pusherChannel, setPusherChannel] = useState<any>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // Timer interval
   useEffect(() => {
@@ -114,6 +113,13 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
         });
         peerConnectionRef.current = pc;
+
+        // Add any existing tracks immediately if setupCamera finished before initWebRTC
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => {
+            pc.addTrack(track, localStreamRef.current!);
+          });
+        }
 
         // Helper to trigger events via server API (bypasses Pusher client events limitation)
         const triggerEvent = async (eventName: string, eventData: any) => {
@@ -145,65 +151,77 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           }
         };
 
+        // Perfect Negotiation State
+        let makingOffer = false;
+        let ignoreOffer = false;
+        const isPolite = currentUser.id !== session.mentor.id; // Student yields to Mentor
+
         // Negotiation needed for dynamic tracks
         pc.onnegotiationneeded = async () => {
-          if (currentUser.id === session.mentor.id) {
-            try {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
-            } catch (e) {
-              console.error("Error creating offer on negotiation needed", e);
-            }
-          } else {
-            // Ask mentor to renegotiate
-            triggerEvent('room-webrtc-renegotiate', { senderId: currentUser.id });
+          try {
+            makingOffer = true;
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            triggerEvent('room-webrtc-offer', { offer: pc.localDescription, senderId: currentUser.id });
+          } catch (e) {
+            console.error("Error creating offer on negotiation needed", e);
+          } finally {
+            makingOffer = false;
           }
         };
 
-        // When student asks for renegotiation, mentor sends new offer
-        channel.bind('room-webrtc-renegotiate', async () => {
-          if (currentUser.id === session.mentor.id) {
-            try {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
-            } catch (e) {
-              console.error("Error renegotiating", e);
-            }
-          }
-        });
-
         channel.bind('pusher:subscription_succeeded', async (members: any) => {
-          if (members.count > 1 && currentUser.id === session.mentor.id) {
+          if (members.count > 1 && !isPolite) {
             try {
+              makingOffer = true;
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
+              triggerEvent('room-webrtc-offer', { offer: pc.localDescription, senderId: currentUser.id });
             } catch (e) {
               console.error(e);
+            } finally {
+              makingOffer = false;
             }
           }
         });
 
         channel.bind('pusher:member_added', async (member: any) => {
-          if (currentUser.id === session.mentor.id) {
+          if (!isPolite) {
             try {
+              makingOffer = true;
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              triggerEvent('room-webrtc-offer', { offer, senderId: currentUser.id });
+              triggerEvent('room-webrtc-offer', { offer: pc.localDescription, senderId: currentUser.id });
             } catch (e) {
               console.error(e);
+            } finally {
+              makingOffer = false;
             }
           }
         });
 
         channel.bind('room-webrtc-offer', async (data: any) => {
           try {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const offerCollision = (pc.signalingState !== "stable") || makingOffer;
+            
+            ignoreOffer = !isPolite && offerCollision;
+            if (ignoreOffer) {
+              return; // We are impolite and there is a collision. Ignore their offer.
+            }
+
+            if (offerCollision) {
+              // We are polite and there's a collision. Rollback our local offer.
+              await Promise.all([
+                pc.setLocalDescription({ type: "rollback" }),
+                pc.setRemoteDescription(new RTCSessionDescription(data.offer))
+              ]);
+            } else {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            }
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            triggerEvent('room-webrtc-answer', { answer, senderId: currentUser.id });
+            triggerEvent('room-webrtc-answer', { answer: pc.localDescription, senderId: currentUser.id });
           } catch (e) {
             console.error("Error handling offer", e);
           }
@@ -221,7 +239,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           try {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
           } catch (e) {
-            console.error("Error adding ICE candidate", e);
+            if (!ignoreOffer) console.error("Error adding ICE candidate", e);
           }
         });
 
@@ -264,6 +282,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: isCameraOn, audio: isMicOn });
           setLocalStream(stream);
+          localStreamRef.current = stream;
           if (localVideoRef.current && isCameraOn) {
             localVideoRef.current.srcObject = stream;
           }
