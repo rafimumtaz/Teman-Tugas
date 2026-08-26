@@ -85,7 +85,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ currentUser, onOpenP
                   <div 
                     className={`w-full rounded-full transition-all duration-300 ${day.active ? 'bg-slate-900 shadow-md' : 'opacity-80 group-hover:opacity-100'}`}
                     style={{ 
-                      height: \`\${day.value}%\`, 
+                      height: `${day.value}%`, 
                       backgroundColor: day.active ? '#1e293b' : day.color 
                     }}
                   />
