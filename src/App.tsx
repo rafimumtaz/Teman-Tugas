@@ -86,6 +86,9 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
 
   // Profile Modal State
   const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
+  
+  // Right Sidebar State
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
 
   // Mentor Onboarding Modal
   const [showMentorOnboardModal, setShowMentorOnboardModal] = useState<boolean>(false);
@@ -1008,6 +1011,8 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
           currentUser={currentUser}
           onOpenProfile={handleOpenOwnProfile}
           onSelectTab={setCurrentTab}
+          isOpen={isRightSidebarOpen}
+          onToggle={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
         />
 
       </div>

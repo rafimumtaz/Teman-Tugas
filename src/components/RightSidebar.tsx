@@ -1,14 +1,16 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { Bell, Settings, Award, Flame, Zap, Trophy, Users, BookOpen, Clock } from 'lucide-react';
+import { Bell, Settings, Award, Flame, Zap, Trophy, Users, BookOpen, Clock, ChevronRight, ChevronLeft, Menu } from 'lucide-react';
 
 interface RightSidebarProps {
   currentUser: UserProfile;
   onOpenProfile: () => void;
   onSelectTab: (tab: 'gamification' | 'questions') => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
-export const RightSidebar: React.FC<RightSidebarProps> = ({ currentUser, onOpenProfile, onSelectTab }) => {
+export const RightSidebar: React.FC<RightSidebarProps> = ({ currentUser, onOpenProfile, onSelectTab, isOpen = true, onToggle }) => {
   // Mock data for activity chart mimicking the design
   const activityData = [
     { label: 'Sen', value: 30, color: '#fca5a5' }, // Red-ish pastel
@@ -26,12 +28,37 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ currentUser, onOpenP
     { id: 3, title: 'Algoritma', desc: 'Dynamic Programming', icon: BookOpen, color: '#bfdbfe', score: 5.0 },
   ];
 
+  if (!isOpen) {
+    return (
+      <aside className="w-16 bg-[#f8f7f4] flex flex-col items-center py-6 h-full border-l border-slate-200 hidden lg:flex rounded-r-[2.5rem] relative">
+        <button 
+          onClick={onToggle}
+          className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg text-slate-700 transition"
+          title="Tampilkan Profil Sidebar"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </aside>
+    );
+  }
+
   return (
-    <aside className="w-80 bg-[#f8f7f4] flex flex-col h-full border-l border-slate-200 overflow-y-auto hidden lg:flex rounded-r-[2.5rem]">
+    <aside className="w-80 bg-[#f8f7f4] flex flex-col h-full border-l border-slate-200 overflow-y-auto hidden lg:flex rounded-r-[2.5rem] relative transition-all">
+      {/* Toggle Close Button */}
+      {onToggle && (
+        <button 
+          onClick={onToggle}
+          className="absolute top-6 left-6 z-10 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:shadow-md text-slate-500 transition"
+          title="Sembunyikan Sidebar"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      )}
+
       <div className="p-6 flex flex-col gap-8">
         
         {/* Top Icons */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-end items-center gap-3">
           <button className="p-2.5 bg-white rounded-full shadow-sm hover:shadow-md transition">
             <Bell className="w-5 h-5 text-slate-700" />
           </button>

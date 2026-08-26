@@ -82,11 +82,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Bottom Actions */}
       <div className="mt-auto flex flex-col gap-4">
         <button
-          onClick={onOpenProfile}
-          className="w-12 h-12 rounded-full flex items-center justify-center bg-white text-slate-500 hover:text-slate-900 shadow-sm hover:shadow-md transition cursor-pointer group relative"
-          title="Pengaturan"
+          onClick={handleLogout}
+          className="w-12 h-12 rounded-full flex items-center justify-center bg-white text-slate-500 hover:text-rose-500 shadow-sm hover:shadow-md transition cursor-pointer group relative"
+          title="Keluar"
         >
-          <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
+          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
         </button>
         
         <div 
