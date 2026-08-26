@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Mic,
   MicOff,
@@ -61,7 +62,8 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Session Duration Timer
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Session Duration Timer
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -710,7 +712,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           {activeTab === 'chat' && (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
               <div className="flex-1 p-3 overflow-y-auto space-y-3 text-xs">
-                {chatMessages.map((msg) => {
+                {chatMessages.map((msg: any) => {
                   const isMe = msg.senderId === currentUser.id;
                   return (
                     <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
@@ -806,7 +808,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
       </div>
 
       {/* Sesi Selesai & Rating Mentor Modal */}
-      {showCompletionModal && (
+      {mounted && showCompletionModal && createPortal(
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 text-slate-900">
             <div className="text-center space-y-2">
@@ -896,11 +898,11 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* Session Ended Modals */}
-      {sessionEndedReason && (
+      {mounted && sessionEndedReason && createPortal(
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95">
             <div className="w-16 h-16 rounded-full bg-slate-100 mx-auto flex items-center justify-center">
@@ -925,7 +927,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
               OK
             </button>
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

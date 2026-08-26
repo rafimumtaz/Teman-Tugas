@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   Filter,
@@ -61,6 +62,9 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'bounty' | 'upvotes'>('newest');
+  
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const pastelColors = ['bg-[#fecaca]', 'bg-[#fed7aa]', 'bg-[#e9d5ff]', 'bg-[#a7f3d0]', 'bg-[#bfdbfe]', 'bg-[#fde047]'];
   const getCardColor = (index: number) => pastelColors[index % pastelColors.length];
@@ -346,7 +350,7 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
       </div>
 
       {/* Question Detail Modal (StackOverflow/Brainly Step by Step view) */}
-      {selectedQuestion && (
+      {mounted && selectedQuestion && createPortal(
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 text-slate-800">
             {/* Modal Header */}
@@ -566,11 +570,11 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
               </form>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* Ask Question Modal */}
-      {showAskModal && (
+      {mounted && showAskModal && createPortal(
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 my-auto text-slate-800">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -714,7 +718,7 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
               </div>
             </form>
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   );
