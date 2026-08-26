@@ -15,7 +15,9 @@ import {
   Wifi,
   FileCheck2,
   Palette,
-  Users
+  Users,
+  Sigma,
+  Moon
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProfile, GamificationReward, LeaderboardUser } from '../types';
@@ -182,7 +184,7 @@ export const GamificationCenter: React.FC<GamificationCenterProps> = ({
                   <div
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 shadow-inner ${isUnlocked ? 'bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 ring-2 ring-amber-300' : 'bg-slate-200 text-slate-400'}`}
                   >
-                    {b.icon === 'SquareSigma' ? '∑' : b.icon === 'Sparkles' ? '✨' : b.icon === 'Flame' ? '🔥' : b.icon === 'Moon' ? '🌙' : '🎓'}
+                    {b.icon === 'SquareSigma' ? <Sigma className="w-6 h-6" /> : b.icon === 'Sparkles' ? <Sparkles className="w-6 h-6 text-amber-500" /> : b.icon === 'Flame' ? <Flame className="w-6 h-6 text-orange-500" /> : b.icon === 'Moon' ? <Moon className="w-6 h-6 text-indigo-500" /> : <Award className="w-6 h-6 text-emerald-500" />}
                   </div>
 
                   <div className="flex-1 min-w-0 space-y-1">

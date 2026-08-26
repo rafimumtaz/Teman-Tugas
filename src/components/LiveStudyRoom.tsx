@@ -19,7 +19,8 @@ import {
   HelpCircle,
   Flame,
   Star,
-  Users
+  PartyPopper,
+  LogOut
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StudyRoomSession, WhiteboardElement, UserProfile } from '../types';
@@ -60,8 +61,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Floating Reactions
-  const [floatingReactions, setFloatingReactions] = useState<{ id: string; emoji: string; x: number }[]>([]);
+  // Session Duration Timer
 
   // Session Duration Timer
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -378,16 +378,6 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
     }, 100);
   };
 
-  const triggerReaction = (emoji: string) => {
-    const id = `react_${Date.now()}_${Math.random()}`;
-    const x = Math.floor(Math.random() * 60) + 20; // 20% to 80% width
-    setFloatingReactions((prev) => [...prev, { id, emoji, x }]);
-
-    setTimeout(() => {
-      setFloatingReactions((prev) => prev.filter((r) => r.id !== id));
-    }, 2000);
-  };
-
   const formatTimer = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -449,18 +439,6 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
 
   return (
     <div id="live-study-room" className="h-[calc(100vh-4rem)] flex flex-col bg-[#F8FAFC] text-slate-900 overflow-hidden relative">
-      {/* Floating Animated Reactions */}
-      <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
-        {floatingReactions.map((r) => (
-          <div
-            key={r.id}
-            style={{ left: `${r.x}%` }}
-            className="absolute bottom-20 text-3xl animate-bounce duration-1000 transition-all transform -translate-y-64 opacity-0"
-          >
-            {r.emoji}
-          </div>
-        ))}
-      </div>
 
       {/* Top Session Ribbon */}
       <div className="bg-white border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between gap-4 z-20 shadow-xs">
@@ -801,19 +779,8 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
           </button>
         </div>
 
-        {/* Center: Emoji Quick Reactions */}
+        {/* Center: Quick Actions */}
         <div className="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full shadow-xs">
-          {['💡', '👏', '🔥', '❤️', '🚀', '🙌'].map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => triggerReaction(emoji)}
-              className="text-lg hover:scale-130 transition-transform px-1 cursor-pointer"
-              title={`Kirim Reaksi ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-          <div className="h-4 w-px bg-slate-300 mx-1" />
           <button
             onClick={() => setIsHandRaised(!isHandRaised)}
             className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full transition ${isHandRaised ? 'bg-amber-400 text-slate-950 font-bold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
@@ -843,8 +810,8 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 text-slate-900">
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 mx-auto flex items-center justify-center text-emerald-600 text-2xl shadow-inner">
-                🎓
+              <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 mx-auto flex items-center justify-center text-emerald-600 shadow-inner">
+                <Award className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">Sesi Kolaborasi Berhasil!</h3>
               <p className="text-xs text-slate-600">
@@ -937,9 +904,7 @@ export const LiveStudyRoom: React.FC<LiveStudyRoomProps> = ({
         <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95">
             <div className="w-16 h-16 rounded-full bg-slate-100 mx-auto flex items-center justify-center">
-              <span className="text-2xl">
-                {sessionEndedReason === 'mentor_left' ? '👋' : '🎉'}
-              </span>
+              {sessionEndedReason === 'mentor_left' ? <LogOut className="w-8 h-8 text-slate-500" /> : <PartyPopper className="w-8 h-8 text-emerald-500" />}
             </div>
             
             <div>

@@ -62,6 +62,9 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'newest' | 'bounty' | 'upvotes'>('newest');
 
+  const pastelColors = ['bg-[#fecaca]', 'bg-[#fed7aa]', 'bg-[#e9d5ff]', 'bg-[#a7f3d0]', 'bg-[#bfdbfe]', 'bg-[#fde047]'];
+  const getCardColor = (index: number) => pastelColors[index % pastelColors.length];
+
   // Detail Modal / View
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
 
@@ -203,197 +206,138 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
   };
 
   return (
-    <div id="questions-board" className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div id="questions-board" className="w-full mx-auto px-8 py-10 space-y-10">
       {/* Header Banner: Mission & Ask CTA */}
-      <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 border border-indigo-500/20 rounded-2xl p-6 shadow-md text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-        <div className="space-y-2 max-w-2xl z-10">
-          <div className="flex items-center gap-2">
-            <span className="bg-white/20 backdrop-blur-xs text-white border border-white/30 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <Zap className="w-3 h-3 text-amber-300" /> Komunitas Tanya-Jawab Tugas
-            </span>
-            <span className="text-xs text-indigo-100">Gabungan StackOverflow + Brainly + Preply</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Tanya Tugas, Bantu Teman, Dapatkan Reward.
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-4 max-w-xl">
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+            Tanya Tugas, <br />Bantu Teman.
           </h1>
-          <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed">
-            Pecahkan soal rumit bersama teman sebaya melalui papan tulis interaktif, petunjuk Socratic tanpa spoiler, dan bimbingan langsung audio-visual.
-          </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch gap-3 z-10 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch gap-3">
           <button
             id="btn-ask-question"
             onClick={() => setShowAskModal(true)}
-            className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-indigo-700 text-xs sm:text-sm font-extrabold px-5 py-3 rounded-xl shadow-md transition"
+            className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold px-6 py-4 rounded-full shadow-lg transition"
           >
-            <PlusCircle className="w-4 h-4 text-indigo-600" />
+            <PlusCircle className="w-5 h-5" />
             <span>Ajukan Soal Baru</span>
           </button>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-3 shadow-xs">
-        {/* Search Input & Sort */}
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari soal kalkulus, redoks, dijkstra, rumus fisika, atau tag..."
-              className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs pl-10 pr-4 py-2.5 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Urutkan:</span>
-            <select
-              value={sortBy}
-              onChange={(e: any) => setSortBy(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
-            >
-              <option value="newest">Terbaru</option>
-              <option value="bounty">Bounty Koin Terbesar</option>
-              <option value="upvotes">Upvotes Terbanyak</option>
-            </select>
-
-            <select
-              value={selectedDifficulty}
-              onChange={(e) => setSelectedDifficulty(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl focus:bg-white focus:border-indigo-500 outline-none"
-            >
-              <option value="Semua">Semua Tingkat</option>
-              <option value="Mudah">Mudah</option>
-              <option value="Sedang">Sedang</option>
-              <option value="Sulit">Sulit</option>
-              <option value="Olimpiade">Olimpiade</option>
-            </select>
-          </div>
-        </div>
-
+      <div className="flex flex-col gap-6">
         {/* Subject Category Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          {SUBJECT_CATEGORIES.map((subj) => (
+        <div className="flex items-center gap-3 overflow-x-auto pb-2 text-sm">
+          {SUBJECT_CATEGORIES.map((subj, index) => (
             <button
               key={subj}
               onClick={() => setSelectedSubject(subj)}
-              className={`px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition ${selectedSubject === subj ? 'bg-indigo-600 text-white shadow-xs font-bold' : 'bg-slate-100/90 text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 border border-slate-200/60'}`}
+              className={`px-5 py-3 rounded-full font-bold whitespace-nowrap transition flex items-center gap-2 ${selectedSubject === subj ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
             >
+              {index === 0 ? <Layers className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
               {subj}
             </button>
           ))}
         </div>
+
+        {/* Search Input & Sort */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="font-bold text-slate-800 text-lg">Soal Populer</div>
+          
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari soal..."
+                className="w-full bg-slate-100 text-slate-900 text-sm pl-10 pr-4 py-2.5 rounded-full focus:bg-white focus:ring-2 focus:ring-slate-900 outline-none transition"
+              />
+            </div>
+
+            <select
+              value={sortBy}
+              onChange={(e: any) => setSortBy(e.target.value)}
+              className="bg-slate-100 text-slate-700 text-sm px-4 py-2.5 rounded-full outline-none font-medium cursor-pointer"
+            >
+              <option value="newest">Terbaru</option>
+              <option value="bounty">Bounty Koin</option>
+              <option value="upvotes">Upvotes</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Questions Feed List */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredQuestions.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-12 text-center text-slate-500 space-y-3 shadow-xs">
+          <div className="col-span-1 md:col-span-2 bg-slate-50 rounded-[2rem] p-12 text-center text-slate-500 space-y-3">
             <BookOpen className="w-10 h-10 mx-auto text-slate-400" />
             <h3 className="text-base font-bold text-slate-800">Tidak ada pertanyaan yang sesuai</h3>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <p className="text-sm text-slate-500 max-w-sm mx-auto">
               Coba gunakan kata kunci pencarian lain atau ajukan pertanyaan baru ke komunitas.
             </p>
           </div>
         ) : (
-          filteredQuestions.map((q) => (
+          filteredQuestions.map((q, index) => (
             <div
               key={q.id}
-              className="bg-white hover:bg-slate-50/40 border border-slate-200/80 hover:border-indigo-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition space-y-3.5"
+              className={`${getCardColor(index)} rounded-[2rem] p-8 transition-transform hover:-translate-y-1 cursor-pointer flex flex-col justify-between min-h-[220px]`}
+              onClick={() => setSelectedQuestion(q)}
             >
               {/* Question Top Meta */}
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/70 font-bold text-[11px] px-2.5 py-0.5 rounded-md">
-                    {q.subject}
-                  </span>
-                  <span className="text-slate-300 text-xs">•</span>
-                  <span className="text-slate-500 text-xs font-medium">{q.subTopic}</span>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${q.difficulty === 'Mudah' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : q.difficulty === 'Sedang' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}
-                  >
-                    {q.difficulty}
-                  </span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 bg-white/40 px-3 py-1.5 rounded-full">
+                  <BookOpen className="w-4 h-4 text-slate-800" />
+                  <span className="text-slate-900 font-bold text-xs">{q.subject}</span>
                 </div>
 
-                {/* Bounty Chip */}
-                <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-full text-xs font-bold text-amber-700">
-                  <Award className="w-3.5 h-3.5 text-amber-500" />
-                  <span>+{q.bountyCoins} Koin</span>
-                  <span className="text-[10px] text-amber-600 font-normal">({q.bountyXp} XP)</span>
+                <div className="flex items-center gap-1.5 bg-white/60 px-3 py-1.5 rounded-full text-xs font-bold text-slate-900">
+                  <Award className="w-4 h-4 text-amber-600" />
+                  <span>{q.bountyCoins}</span>
                 </div>
               </div>
 
-              {/* Title & Body Preview */}
-              <div className="space-y-1.5 cursor-pointer" onClick={() => setSelectedQuestion(q)}>
-                <h3 className="text-base font-bold text-slate-900 hover:text-indigo-600 transition leading-snug">
+              {/* Title */}
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-slate-900 leading-snug line-clamp-2">
                   {q.title}
                 </h3>
-                <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{q.description}</p>
               </div>
 
-              {/* Raw Equation Box if exists */}
-              {q.rawEquation && (
-                <div className="bg-slate-50 border border-indigo-100 rounded-xl px-3.5 py-2 font-mono text-xs text-indigo-900 flex items-center gap-2 overflow-x-auto">
-                  <Sigma className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span className="truncate">{q.rawEquation}</span>
-                </div>
-              )}
-
-              {/* Tags & Action Bar */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-3 flex-wrap text-xs">
-                {/* Asker Info */}
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src={q.askerAvatar}
-                    alt={q.askerName}
-                    className="w-7 h-7 rounded-full object-cover border border-slate-200"
-                  />
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-slate-800">{q.askerName}</span>
-                    <span className="text-[10px] text-slate-500">
-                      {q.askerSchool} • {q.createdAt}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right Interactive Buttons */}
+              {/* Bottom Meta */}
+              <div className="flex items-center justify-between mt-auto">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => onUpvoteQuestion(q.id)}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border transition ${q.userUpvoted ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-bold' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'}`}
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5" />
+                  <div className="flex -space-x-2">
+                    <img
+                      src={q.askerAvatar}
+                      alt={q.askerName}
+                      className="w-8 h-8 rounded-full border-2 border-white object-cover"
+                    />
+                    {q.answers.length > 0 && (
+                      <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold z-10">
+                        +{q.answers.length}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-800 ml-1">
+                    {q.askerName.split(' ')[0]}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 text-slate-800 font-bold text-xs">
+                    <ThumbsUp className="w-4 h-4" />
                     <span>{q.upvotes}</span>
-                  </button>
-
-                  <button
-                    onClick={() => onOpenSocraticHint(q)}
-                    className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 px-3 py-1.5 rounded-lg font-semibold transition"
-                    title="Petunjuk Socratic AI"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span className="hidden sm:inline">AI Hint</span>
-                  </button>
-
-                  <button
-                    onClick={() => onStartLiveSession(q)}
-                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg font-bold shadow-xs transition"
-                  >
-                    <Video className="w-3.5 h-3.5" />
-                    <span>Buka Whiteboard</span>
-                  </button>
-
-                  <button
-                    onClick={() => setSelectedQuestion(q)}
-                    className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium transition"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>{q.answers.length} Jawaban</span>
-                  </button>
+                  </div>
+                  <div className="flex items-center gap-1 text-slate-800 font-bold text-xs">
+                    <MessageSquare className="w-4 h-4" />
+                    <span>{q.answers.length}</span>
+                  </div>
                 </div>
               </div>
             </div>

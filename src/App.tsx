@@ -21,6 +21,7 @@ import { requestLiveSession, acceptLiveSession, rejectLiveSession } from './app/
 import { getPusherClient } from './lib/pusherClient';
 // Removed mock data imports as the app is now fully database-backed
 import { Navbar } from './components/Navbar';
+import { RightSidebar } from './components/RightSidebar';
 import { QuestionsBoard } from './components/QuestionsBoard';
 import { LiveStudyRoom } from './components/LiveStudyRoom';
 import { MentorMarketplace } from './components/MentorMarketplace';
@@ -28,7 +29,7 @@ import { GamificationCenter } from './components/GamificationCenter';
 import { SocraticModal } from './components/SocraticModal';
 import { Whiteboard } from './components/Whiteboard';
 import { UserProfileModal } from './components/UserProfileModal';
-import { Sparkles, Video, Award, CheckCircle2, BookOpen, Users, PlusCircle, ShieldCheck } from 'lucide-react';
+import { Sparkles, Video, Award, CheckCircle2, BookOpen, Users, PlusCircle, ShieldCheck, Frown } from 'lucide-react';
 
 interface AppProps {
   dbUsers?: UserProfile[];
@@ -870,27 +871,30 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
   };
 
   return (
-    <div id="temantugas-app" className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div id="temantugas-app" className="h-screen w-screen bg-[#e6f4f1] text-slate-900 flex font-sans selection:bg-indigo-500 selection:text-white overflow-hidden p-2 sm:p-4 md:p-6">
       {/* Top Banner Notice if triggered */}
       {bannerNotice && (
-        <div className="bg-indigo-600 text-white text-xs font-semibold px-4 py-2 text-center shadow-md flex items-center justify-center gap-2 animate-fade-in z-50">
+        <div className="absolute top-0 left-0 right-0 bg-[#00b4db] text-white text-xs font-semibold px-4 py-2 text-center shadow-md flex items-center justify-center gap-2 animate-fade-in z-50">
           <Sparkles className="w-3.5 h-3.5" />
           <span>{bannerNotice}</span>
         </div>
       )}
 
-      {/* Main Global Navigation */}
-      <Navbar
-        currentTab={currentTab}
-        onSelectTab={setCurrentTab}
-        currentUser={currentUser}
-        onToggleRole={handleToggleRole}
-        onOpenProfile={handleOpenOwnProfile}
-        activeRoomActive={!!activeSession}
-      />
+      {/* Main App Container simulating a rounded window */}
+      <div className="w-full h-full bg-white rounded-[2.5rem] shadow-2xl flex overflow-hidden relative">
 
-      {/* Main View Router */}
-      <main className="flex-1">
+        {/* Left Sidebar */}
+        <Navbar
+          currentTab={currentTab}
+          onSelectTab={setCurrentTab}
+          currentUser={currentUser}
+          onToggleRole={handleToggleRole}
+          onOpenProfile={handleOpenOwnProfile}
+          activeRoomActive={!!activeSession}
+        />
+
+        {/* Main Center Content */}
+        <main className="flex-1 overflow-y-auto bg-[#fdfdfd] relative z-0">
         {/* Tab 1: Questions Board (StackOverflow + Brainly) */}
         {currentTab === 'questions' && (
           <QuestionsBoard
@@ -997,7 +1001,16 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
             onClaimReward={handleClaimReward}
           />
         )}
-      </main>
+        </main>
+
+        {/* Right Sidebar */}
+        <RightSidebar
+          currentUser={currentUser}
+          onOpenProfile={handleOpenOwnProfile}
+          onSelectTab={setCurrentTab}
+        />
+
+      </div>
 
       {/* User Detailed Profile & Reputation Modal */}
       {selectedUserProfile && (
@@ -1254,7 +1267,7 @@ export default function App({ dbUsers, dbQuestions, initialUserId }: AppProps) {
         <div className="fixed inset-0 z-[120] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95">
             <div className="w-16 h-16 rounded-full bg-rose-100 mx-auto flex items-center justify-center">
-              <span className="text-2xl">😔</span>
+              <Frown className="w-10 h-10 text-slate-400 mx-auto" />
             </div>
             
             <div>

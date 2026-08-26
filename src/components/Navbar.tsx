@@ -4,14 +4,11 @@ import {
   Presentation,
   Users,
   Trophy,
-  Award,
-  Flame,
-  Sparkles,
-  PlusCircle,
   GraduationCap,
-  Zap,
+  Settings,
   User,
-  LogOut
+  LogOut,
+  Home
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { logoutUser } from '../app/actions/auth';
@@ -41,185 +38,67 @@ export const Navbar: React.FC<NavbarProps> = ({
     router.push('/login');
   };
 
+  const navItems = [
+    { id: 'questions' as const, icon: Home, label: 'Beranda' },
+    { id: 'whiteboard' as const, icon: Presentation, label: 'Live' },
+    { id: 'mentors' as const, icon: BookOpen, label: 'Mentor' },
+    { id: 'gamification' as const, icon: Trophy, label: 'Gamifikasi' },
+  ];
+
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 text-slate-800 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-        {/* Brand & Logo */}
-        <div
-          onClick={() => onSelectTab('questions')}
-          className="flex items-center gap-2.5 cursor-pointer select-none group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 group-hover:scale-105 transition-transform">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-lg tracking-tight text-slate-900">
-                TemanTugas
-              </span>
-              <span className="bg-indigo-50 text-indigo-700 border border-indigo-200/80 text-[10px] font-bold px-1.5 py-0.2 rounded-md">
-                P2P
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500 -mt-0.5 hidden sm:block">
-              How tech helps people help each other
-            </p>
-          </div>
+    <aside className="w-24 bg-[#f8f7f4] h-full flex flex-col items-center py-6 border-r border-slate-200 rounded-l-[2.5rem] z-40 hidden md:flex">
+      {/* Brand & Logo */}
+      <div
+        onClick={() => onSelectTab('questions')}
+        className="mb-10 cursor-pointer select-none group"
+      >
+        <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform overflow-hidden relative">
+           <GraduationCap className="w-6 h-6 absolute z-10 text-white" />
+           <div className="w-full h-full bg-gradient-to-tr from-[#02b6e3] to-[#4321d6] opacity-50 z-0 absolute" />
         </div>
+      </div>
 
-        {/* Center Nav Links */}
-        <nav className="hidden md:flex items-center gap-1 bg-slate-100/80 border border-slate-200/70 p-1 rounded-2xl text-xs font-semibold">
+      {/* Center Nav Links (Vertical) */}
+      <nav className="flex flex-col gap-6 flex-1 w-full items-center">
+        {navItems.map((item) => (
           <button
-            onClick={() => onSelectTab('questions')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition cursor-pointer ${currentTab === 'questions' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/80'}`}
+            key={item.id}
+            onClick={() => onSelectTab(item.id)}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+              currentTab === item.id
+                ? 'bg-slate-900 text-white shadow-lg scale-110'
+                : 'bg-white text-slate-500 hover:text-slate-900 shadow-sm hover:shadow-md'
+            }`}
+            title={item.label}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Tanya Tugas</span>
-          </button>
-
-          <button
-            onClick={() => onSelectTab('whiteboard')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition relative cursor-pointer ${currentTab === 'whiteboard' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/80'}`}
-          >
-            <Presentation className="w-3.5 h-3.5" />
-            <span>Papan Tulis & Live</span>
-            {activeRoomActive && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping absolute top-2 right-2" />
+            <item.icon className="w-5 h-5" />
+            {item.id === 'whiteboard' && activeRoomActive && (
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white absolute -top-1 -right-1 animate-pulse" />
             )}
           </button>
+        ))}
+      </nav>
 
-          <button
-            onClick={() => onSelectTab('mentors')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition cursor-pointer ${currentTab === 'mentors' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/80'}`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Cari Mentor</span>
-          </button>
-
-          <button
-            onClick={() => onSelectTab('gamification')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition cursor-pointer ${currentTab === 'gamification' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/80'}`}
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            <span>Peringkat & Hadiah</span>
-          </button>
-        </nav>
-
-        {/* Right Gamification & Profile Status */}
-        <div className="flex items-center gap-2.5">
-          {/* Reputation Points Pill */}
-          <div
-            onClick={onOpenProfile}
-            className="flex items-center gap-1 bg-amber-50 border border-amber-200 hover:border-amber-400 px-2.5 py-1.5 rounded-xl cursor-pointer transition text-xs font-bold text-amber-700 shadow-xs group"
-            title="Poin Reputasi Anda (Klik untuk melihat profil)"
-          >
-            <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500 group-hover:scale-110 transition-transform" />
-            <span>{(currentUser.reputationPoints || 0).toLocaleString('id-ID')}</span>
-          </div>
-
-          {/* Streak Flame */}
-          <div
-            onClick={() => onSelectTab('gamification')}
-            className="flex items-center gap-1 bg-white border border-orange-200/80 hover:border-orange-300 px-2.5 py-1.5 rounded-xl cursor-pointer transition text-xs font-bold text-orange-600 shadow-xs"
-            title={`${currentUser.streakDays} hari beruntun!`}
-          >
-            <Flame className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
-            <span>{currentUser.streakDays}</span>
-          </div>
-
-          {/* TemanCoins Pill */}
-          <div
-            onClick={() => onSelectTab('gamification')}
-            className="flex items-center gap-1 bg-white border border-amber-200/80 hover:border-amber-300 px-2.5 py-1.5 rounded-xl cursor-pointer transition text-xs font-bold text-amber-600 shadow-xs"
-            title="Saldo TemanCoins Anda"
-          >
-            <Award className="w-3.5 h-3.5 text-amber-500" />
-            <span>{currentUser.temanCoins}</span>
-          </div>
-
-          {/* User Avatar + Level (Opens Profile) */}
-          <div
-            onClick={onOpenProfile}
-            className="flex items-center gap-2 pl-1 cursor-pointer group"
-            title="Buka Profil Saya & Riwayat Bantuan"
-          >
-            <div className="relative">
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                className="w-8 h-8 rounded-full object-cover border-2 border-indigo-500 group-hover:ring-2 group-hover:ring-indigo-400 transition shadow-xs"
-              />
-              <span className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-900 text-[9px] font-black px-1 rounded-full ring-1 ring-white">
-                {currentUser.level}
-              </span>
-            </div>
-            <div className="hidden lg:flex flex-col text-left">
-              <span className="text-xs font-extrabold text-slate-800 leading-tight group-hover:text-indigo-600 transition">
-                {currentUser.name.split(' ')[0]}
-              </span>
-              <span className="text-[10px] text-slate-400 font-semibold leading-none">
-                @{currentUser.username || 'profil'}
-              </span>
-            </div>
-          </div>
-          
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="ml-2 flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 transition-colors border border-slate-200 shadow-xs cursor-pointer"
-            title="Keluar"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around bg-white border-t border-slate-200 py-2 px-2 text-[10px] font-semibold text-slate-500">
-        <button
-          onClick={() => onSelectTab('questions')}
-          className={`flex flex-col items-center gap-1 p-1 cursor-pointer ${currentTab === 'questions' ? 'text-indigo-600 font-bold' : ''}`}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span>Tugas</span>
-        </button>
-
-        <button
-          onClick={() => onSelectTab('whiteboard')}
-          className={`flex flex-col items-center gap-1 p-1 relative cursor-pointer ${currentTab === 'whiteboard' ? 'text-indigo-600 font-bold' : ''}`}
-        >
-          <Presentation className="w-4 h-4" />
-          <span>Whiteboard</span>
-          {activeRoomActive && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 absolute top-1 right-3" />
-          )}
-        </button>
-
-        <button
-          onClick={() => onSelectTab('mentors')}
-          className={`flex flex-col items-center gap-1 p-1 cursor-pointer ${currentTab === 'mentors' ? 'text-indigo-600 font-bold' : ''}`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Mentor</span>
-        </button>
-
-        <button
-          onClick={() => onSelectTab('gamification')}
-          className={`flex flex-col items-center gap-1 p-1 cursor-pointer ${currentTab === 'gamification' ? 'text-indigo-600 font-bold' : ''}`}
-        >
-          <Trophy className="w-4 h-4" />
-          <span>Reward</span>
-        </button>
-
+      {/* Bottom Actions */}
+      <div className="mt-auto flex flex-col gap-4">
         <button
           onClick={onOpenProfile}
-          className="flex flex-col items-center gap-1 p-1 cursor-pointer text-indigo-600 font-bold"
+          className="w-12 h-12 rounded-full flex items-center justify-center bg-white text-slate-500 hover:text-slate-900 shadow-sm hover:shadow-md transition cursor-pointer group relative"
+          title="Pengaturan"
         >
-          <User className="w-4 h-4" />
-          <span>Profil</span>
+          <Settings className="w-5 h-5 group-hover:rotate-45 transition-transform duration-300" />
         </button>
+        
+        <div 
+          onClick={onOpenProfile}
+          className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer relative"
+          title="Profil Anda"
+        >
+          <img src={currentUser.avatar} alt="Profile" className="w-full h-full object-cover relative z-10" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#02b6e3] to-[#4321d6] opacity-0 group-hover:opacity-20 transition z-20" />
+        </div>
       </div>
-    </header>
+    </aside>
   );
 };
 

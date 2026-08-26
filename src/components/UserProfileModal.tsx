@@ -27,7 +27,16 @@ import {
   Filter,
   Check,
   Send,
-  AlertCircle
+  AlertCircle,
+  HelpCircle,
+  Link,
+  Github,
+  Twitter,
+  Linkedin,
+  Crown,
+  Sprout,
+  Lightbulb,
+  BrainCircuit
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProfile, PastAssistance, MentorReview, ReputationTier } from '../types';
@@ -174,29 +183,33 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         return {
           bg: 'bg-amber-500/10 text-amber-700 border-amber-300',
           badge: 'from-amber-500 to-yellow-600 text-white',
-          label: 'Master Mentor',
-          icon: '👑'
+          name: 'Master Mentor',
+          icon: <Crown className="w-6 h-6 text-amber-500 drop-shadow-sm" />,
+          color: 'from-amber-400 to-orange-500'
         };
       case 'Elite Scholar':
         return {
           bg: 'bg-indigo-500/10 text-indigo-700 border-indigo-300',
           badge: 'from-indigo-600 to-violet-600 text-white',
-          label: 'Elite Scholar',
-          icon: '⭐'
+          name: 'Elite Scholar',
+          icon: <Award className="w-6 h-6 text-indigo-500 drop-shadow-sm" />,
+          color: 'from-indigo-400 to-violet-500'
         };
       case 'Trusted Peer':
         return {
           bg: 'bg-emerald-500/10 text-emerald-700 border-emerald-300',
           badge: 'from-emerald-600 to-teal-600 text-white',
-          label: 'Trusted Peer',
-          icon: '🛡️'
+          name: 'Trusted Peer',
+          icon: <ShieldCheck className="w-6 h-6 text-emerald-500 drop-shadow-sm" />,
+          color: 'from-emerald-400 to-teal-500'
         };
       default:
         return {
           bg: 'bg-slate-500/10 text-slate-700 border-slate-300',
           badge: 'from-slate-600 to-slate-700 text-white',
-          label: 'Novice Mentor',
-          icon: '🌱'
+          name: 'Novice Mentor',
+          icon: <Sprout className="w-6 h-6 text-slate-500 drop-shadow-sm" />,
+          color: 'from-slate-400 to-slate-500'
         };
     }
   };
@@ -238,8 +251,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900">{user.name}</h2>
                   <span className="text-sm font-semibold text-slate-400">@{user.username || user.id}</span>
                   <span className={`text-xs font-black px-2.5 py-0.5 rounded-full border shadow-2xs flex items-center gap-1 ${tierInfo.bg}`}>
-                    <span>{tierInfo.icon}</span>
-                    <span>{user.reputationTier || 'Novice Mentor'}</span>
+                    <span>{tierInfo.name}</span>
                   </span>
                   {user.isOnline && (
                     <span className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 ml-0 sm:ml-1">
@@ -867,9 +879,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                             <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-extrabold px-2.5 py-0.5 rounded-md">
                               {item.subject}
                             </span>
-                            <span className="text-[11px] font-bold text-slate-500">
-                              {item.type === 'live_session' ? '🎙️ Sesi Live Whiteboard' : item.type === 'qna_solution' ? '💡 Solusi Terverifikasi' : '🧠 Petunjuk Socratic'}
-                            </span>
+                            <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                              {item.type === 'live_session' ? (
+                                <><Video className="w-4 h-4 text-rose-500" /> Sesi Live Whiteboard</>
+                              ) : item.type === 'qna_solution' ? (
+                                <><Lightbulb className="w-4 h-4 text-amber-500" /> Solusi Terverifikasi</>
+                              ) : (
+                                <><BrainCircuit className="w-4 h-4 text-indigo-500" /> Petunjuk Socratic</>
+                              )}
+                            </div>
                             <span className="text-slate-300">•</span>
                             <span className="text-xs text-slate-400">{item.date}</span>
                           </div>
@@ -942,8 +960,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-2 shadow-2xs">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-black text-lg">
-                    ★ 5
+                  <div className="w-16 h-16 rounded-full bg-slate-100 mx-auto flex items-center justify-center mb-4">
+                    <Star className="w-8 h-8 text-amber-400" />
                   </div>
                   <h4 className="font-black text-slate-900 text-sm">Rating Bintang 5</h4>
                   <p className="text-xs text-slate-500 leading-relaxed">
@@ -977,13 +995,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jenjang Tingkat Mentor TemanTugas:</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                    <div className="font-black text-slate-800 flex items-center gap-1">🌱 Novice Mentor</div>
+                    <div className="font-black text-slate-800 flex items-center gap-1"><Sprout className="w-3 h-3 text-slate-500" /> Novice Mentor</div>
                     <div className="text-slate-500 text-[11px]">0 - 500 Poin</div>
                     <div className="text-slate-400 text-[10px]">Tingkat awal memulai bimbingan.</div>
                   </div>
 
                   <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-1">
-                    <div className="font-black text-emerald-700 flex items-center gap-1">🛡️ Trusted Peer</div>
+                    <div className="font-black text-emerald-700 flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-emerald-500" /> Trusted Peer</div>
                     <div className="text-slate-500 text-[11px]">500 - 2.000 Poin</div>
                     <div className="text-slate-400 text-[10px]">Mentor terpercaya komunitas.</div>
                   </div>
@@ -995,7 +1013,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </div>
 
                   <div className="bg-white p-3 rounded-xl border border-amber-200 space-y-1">
-                    <div className="font-black text-amber-700 flex items-center gap-1">👑 Master Mentor</div>
+                    <div className="font-black text-amber-700 flex items-center gap-1"><Crown className="w-3 h-3 text-amber-500" /> Master Mentor</div>
                     <div className="text-slate-500 text-[11px]">4.500+ Poin</div>
                     <div className="text-slate-400 text-[10px]">Tingkat tertinggi & tutor senior.</div>
                   </div>
