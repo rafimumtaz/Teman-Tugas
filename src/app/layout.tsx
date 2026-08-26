@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import '../index.css';
 
 export const metadata: Metadata = {
-  title: 'My Google AI Studio App',
-  description: 'An application built with Google AI Studio.',
+  title: 'TemanTugas',
+  description: 'Klik, Konek, Kelar.',
 };
 
 export default function RootLayout({

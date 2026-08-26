@@ -325,7 +325,7 @@ export const QuestionsBoard: React.FC<QuestionsBoardProps> = ({
                     )}
                   </div>
                   <span className="text-xs font-semibold text-slate-800 ml-1">
-                    {q.askerName.split(' ')[0]}
+                    {q.askerName ? q.askerName.split(' ')[0] : 'Siswa'}
                   </span>
                 </div>
 
